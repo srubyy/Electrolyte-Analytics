@@ -1,0 +1,36 @@
+# Dependency directories
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Python Virtual Environment
+.venv/
+bin/
+include/
+lib/
+share/
+pyvenv.cfg
+
+# Local Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+
+# Production builds
+dist/
+client/dist/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
