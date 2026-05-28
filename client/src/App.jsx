@@ -65,6 +65,7 @@ function App() {
   const [stockData, setStockData] = useState([]);
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [approvalsData, setApprovalsData] = useState([]);
+  const [clientsList, setClientsList] = useState([]);
   
   // Interactive filters & selections
   const [lotFilter, setLotFilter] = useState('');
@@ -94,6 +95,44 @@ function App() {
     qty_received: '',
     remarks: ''
   });
+  const [managerSignOff, setManagerSignOff] = useState(false);
+
+  // Stock Filtering States
+  const [stockSearchQuery, setStockSearchQuery] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [dateStartFilter, setDateStartFilter] = useState('');
+  const [dateEndFilter, setDateEndFilter] = useState('');
+
+  // Stock Outward Modal Form State
+  const [showOutwardModal, setShowOutwardModal] = useState(false);
+  const [outwardForm, setOutwardForm] = useState({
+    lot_id: '',
+    qty: '',
+    remarks: ''
+  });
+
+  // Stock Return Modal Form State
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnForm, setReturnForm] = useState({
+    lot_id: '',
+    qty: '',
+    reason: 'Solder Defect',
+    remarks: ''
+  });
+
+  // Stock Redispatch Modal Form State
+  const [showRedispatchModal, setShowRedispatchModal] = useState(false);
+  const [redispatchForm, setRedispatchForm] = useState({
+    lot_id: '',
+    qty: '',
+    remarks: ''
+  });
+
+  // Stock Transaction History Audit Modal State
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
+  const [selectedLotTransactions, setSelectedLotTransactions] = useState([]);
+  const [transactionsLotNo, setTransactionsLotNo] = useState('');
 
   // Repair Terminal States
   const [barcodeSearch, setBarcodeSearch] = useState('');
@@ -133,6 +172,7 @@ function App() {
       fetchStock();
       fetchLeaderboard();
       fetchApprovals();
+      fetchClients();
     }
   }, [user]);
 
@@ -176,7 +216,15 @@ function App() {
 
   const fetchStock = async () => {
     try {
-      const res = await apiFetch('/api/stock');
+      let queryParams = [];
+      if (stockSearchQuery) queryParams.push(`search=${encodeURIComponent(stockSearchQuery)}`);
+      if (clientFilter) queryParams.push(`client_id=${clientFilter}`);
+      if (statusFilter) queryParams.push(`status=${statusFilter}`);
+      if (dateStartFilter) queryParams.push(`start_date=${dateStartFilter}`);
+      if (dateEndFilter) queryParams.push(`end_date=${dateEndFilter}`);
+      
+      const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+      const res = await apiFetch(`/api/stock${queryString}`);
       if (res.ok) {
         const data = await res.json();
         setStockData(data);
@@ -185,6 +233,25 @@ function App() {
       console.error(err);
     }
   };
+
+  const fetchClients = async () => {
+    try {
+      const res = await apiFetch('/api/stock/clients');
+      if (res.ok) {
+        const data = await res.json();
+        setClientsList(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Re-fetch stock when filters change
+  useEffect(() => {
+    if (user) {
+      fetchStock();
+    }
+  }, [stockSearchQuery, clientFilter, statusFilter, dateStartFilter, dateEndFilter]);
 
   const fetchLeaderboard = async () => {
     try {
@@ -234,6 +301,23 @@ function App() {
   // Handle new lot inward submit
   const handleInwardSubmit = async (e) => {
     e.preventDefault();
+
+    const qtySent = parseInt(newLot.qty_sent);
+    const qtyRecv = parseInt(newLot.qty_received);
+    const hasDiscrepancy = qtySent !== qtyRecv;
+
+    // Discrepancy block for Team Leads
+    if (hasDiscrepancy && !['Superadmin', 'Manager'].includes(user.role)) {
+      showToast('Manager or Superadmin privilege is required to sign off on discrepancies.', 'danger');
+      return;
+    }
+
+    // Discrepancy sign-off requirement for Managers/Superadmins
+    if (hasDiscrepancy && !managerSignOff) {
+      showToast('You must confirm manager sign-off for this discrepancy.', 'warning');
+      return;
+    }
+
     try {
       const res = await apiFetch('/api/stock/inward', {
         method: 'POST',
@@ -242,8 +326,8 @@ function App() {
           batch_no: newLot.batch_no,
           pixel_pitch: newLot.pixel_pitch,
           client_name: newLot.client_name,
-          qty_sent: parseInt(newLot.qty_sent),
-          qty_received: parseInt(newLot.qty_received),
+          qty_sent: qtySent,
+          qty_received: qtyRecv,
           remarks: newLot.remarks
         })
       });
@@ -260,14 +344,112 @@ function App() {
           qty_received: '',
           remarks: ''
         });
+        setManagerSignOff(false);
         fetchStock();
         fetchDashboard();
+        fetchClients();
       } else {
         showToast(data.error || 'Failed to inward lot', 'danger');
       }
     } catch (err) {
       console.error(err);
       showToast('Error connecting to API', 'danger');
+    }
+  };
+
+  const handleOutwardSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch('/api/stock/outward', {
+        method: 'POST',
+        body: JSON.stringify({
+          lot_id: parseInt(outwardForm.lot_id),
+          qty: parseInt(outwardForm.qty),
+          remarks: outwardForm.remarks
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Outward dispatch of ${outwardForm.qty} recorded successfully!`);
+        setShowOutwardModal(false);
+        setOutwardForm({ lot_id: '', qty: '', remarks: '' });
+        fetchStock();
+        fetchDashboard();
+      } else {
+        showToast(data.error || 'Failed to record outward dispatch', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to API', 'danger');
+    }
+  };
+
+  const handleReturnSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch('/api/stock/return', {
+        method: 'POST',
+        body: JSON.stringify({
+          lot_id: parseInt(returnForm.lot_id),
+          qty: parseInt(returnForm.qty),
+          reason: returnForm.reason,
+          remarks: returnForm.remarks
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Return of ${returnForm.qty} recorded successfully!`);
+        setShowReturnModal(false);
+        setReturnForm({ lot_id: '', qty: '', reason: 'Solder Defect', remarks: '' });
+        fetchStock();
+        fetchDashboard();
+      } else {
+        showToast(data.error || 'Failed to record return', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to API', 'danger');
+    }
+  };
+
+  const handleRedispatchSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch('/api/stock/redispatch', {
+        method: 'POST',
+        body: JSON.stringify({
+          lot_id: parseInt(redispatchForm.lot_id),
+          qty: parseInt(redispatchForm.qty),
+          remarks: redispatchForm.remarks
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Redispatch of ${redispatchForm.qty} recorded successfully!`);
+        setShowRedispatchModal(false);
+        setRedispatchForm({ lot_id: '', qty: '', remarks: '' });
+        fetchStock();
+        fetchDashboard();
+      } else {
+        showToast(data.error || 'Failed to record redispatch', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to API', 'danger');
+    }
+  };
+
+  const handleViewLotTransactions = async (lotId, lotNo) => {
+    try {
+      const res = await apiFetch(`/api/stock/transactions/${lotId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedLotTransactions(data);
+        setTransactionsLotNo(lotNo);
+        setShowTransactionsModal(true);
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -815,6 +997,82 @@ function App() {
                     </div>
                   </div>
 
+                  {/* KPI cards - dynamically calculated from stockData */}
+                  <div className="metrics-grid" style={{ marginBottom: 20 }}>
+                    <div className="metric-card glass-panel blue">
+                      <span className="metric-label">Total Lots</span>
+                      <h3 className="metric-val">{stockData.length}</h3>
+                    </div>
+                    <div className="metric-card glass-panel">
+                      <span className="metric-label">Total Received</span>
+                      <h3 className="metric-val">{stockData.reduce((sum, l) => sum + l.received_qty, 0)}</h3>
+                    </div>
+                    <div className="metric-card glass-panel success">
+                      <span className="metric-label">Dispatched OK</span>
+                      <h3 className="metric-val">{stockData.reduce((sum, l) => sum + l.dispatched_qty, 0)}</h3>
+                    </div>
+                    <div className="metric-card glass-panel warning">
+                      <span className="metric-label">Total Available</span>
+                      <h3 className="metric-val" style={{ color: '#f59e0b' }}>
+                        {stockData.reduce((sum, l) => sum + l.available, 0)}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Multi-Criteria Stock Search & Filters */}
+                  <div className="glass-panel" style={{ padding: 16, marginBottom: 20 }}>
+                    <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 12 }}>Filter Stock Records</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ position: 'relative' }}>
+                        <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input 
+                          type="text" 
+                          placeholder="Search lot number or batch code..." 
+                          value={stockSearchQuery}
+                          onChange={e => { setStockSearchQuery(e.target.value); setCurrentStockPage(1); }}
+                          style={{ paddingLeft: 36 }}
+                        />
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <select value={clientFilter} onChange={e => { setClientFilter(e.target.value); setCurrentStockPage(1); }}>
+                            <option value="">All Clients</option>
+                            {clientsList.map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setCurrentStockPage(1); }}>
+                            <option value="">All Statuses</option>
+                            <option value="In Process">In Process</option>
+                            <option value="Complete">Complete</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.65rem', marginBottom: 2 }}>From Date</label>
+                          <input 
+                            type="date" 
+                            value={dateStartFilter} 
+                            onChange={e => { setDateStartFilter(e.target.value); setCurrentStockPage(1); }} 
+                          />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                          <label style={{ fontSize: '0.65rem', marginBottom: 2 }}>To Date</label>
+                          <input 
+                            type="date" 
+                            value={dateEndFilter} 
+                            onChange={e => { setDateEndFilter(e.target.value); setCurrentStockPage(1); }} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Inward New Lot Form Drawer */}
                   {showInwardForm && (
                     <div className="glass-panel" style={{ padding: 16, marginBottom: 20, borderColor: '#ffd400' }}>
@@ -862,7 +1120,7 @@ function App() {
                         </div>
                         <div className="metrics-grid" style={{ marginBottom: 0 }}>
                           <div className="form-group">
-                            <label>Client Qty Sent</label>
+                            <label>Client Qty Sent (Expected)</label>
                             <input 
                               type="number" 
                               required 
@@ -872,7 +1130,7 @@ function App() {
                             />
                           </div>
                           <div className="form-group">
-                            <label>Actual Qty Recv</label>
+                            <label>Actual Qty Recv (Inward)</label>
                             <input 
                               type="number" 
                               required 
@@ -882,6 +1140,34 @@ function App() {
                             />
                           </div>
                         </div>
+
+                        {/* GRN Discrepancy Warnings & Sign-offs */}
+                        {newLot.qty_sent && newLot.qty_received && parseInt(newLot.qty_sent) !== parseInt(newLot.qty_received) && (
+                          <div className="glass-panel" style={{ padding: 12, marginBottom: 16, borderColor: '#ef4444', background: 'rgba(239, 68, 68, 0.05)' }}>
+                            <div style={{ color: '#fca5a5', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, marginBottom: 6 }}>
+                              <AlertTriangle size={14} color="#ef4444" /> GRN DISCREPANCY DETECTED
+                            </div>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: 8 }}>
+                              The actual received quantity ({newLot.qty_received}) differs from expected ({newLot.qty_sent}) by {Math.abs(parseInt(newLot.qty_sent) - parseInt(newLot.qty_received))} units.
+                            </p>
+                            {!['Superadmin', 'Manager'].includes(user.role) ? (
+                              <div style={{ color: '#f87171', fontSize: '0.7rem', fontWeight: 700 }}>
+                                🚫 BLOCKER: You have Team Lead privileges. Discrepancy requires a Manager or Superadmin to inward.
+                              </div>
+                            ) : (
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', cursor: 'pointer', color: '#fff', fontWeight: 600 }}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={managerSignOff} 
+                                  onChange={e => setManagerSignOff(e.target.checked)} 
+                                  style={{ width: 'auto' }}
+                                />
+                                I confirm Manager sign-off for this discrepancy.
+                              </label>
+                            )}
+                          </div>
+                        )}
+
                         <div className="form-group">
                           <label>Remarks</label>
                           <textarea 
@@ -892,8 +1178,14 @@ function App() {
                           />
                         </div>
                         <div className="metrics-grid">
-                          <button type="submit" className="btn">Save Inward</button>
-                          <button type="button" onClick={() => setShowInwardForm(false)} className="btn btn-secondary">Cancel</button>
+                          <button 
+                            type="submit" 
+                            className="btn" 
+                            disabled={newLot.qty_sent && newLot.qty_received && parseInt(newLot.qty_sent) !== parseInt(newLot.qty_received) && (!['Superadmin', 'Manager'].includes(user.role) || !managerSignOff)}
+                          >
+                            Save Inward
+                          </button>
+                          <button type="button" onClick={() => { setShowInwardForm(false); setManagerSignOff(false); }} className="btn btn-secondary">Cancel</button>
                         </div>
                       </form>
                     </div>
@@ -901,10 +1193,15 @@ function App() {
 
                   {/* Lots Summary Card List (Paginated, showing 5 per page) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {paginatedLots.map(lot => {
+                    {paginatedLots.length === 0 ? (
+                      <div className="glass-panel" style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                        No lots match the active filter criteria.
+                      </div>
+                    ) : paginatedLots.map(lot => {
                       const shortage = lot.qty_sent - lot.received_qty;
+                      const isComplete = lot.status === 'Complete';
                       return (
-                        <div key={lot.id} className="glass-panel" style={{ padding: 16 }}>
+                        <div key={lot.id} className="glass-panel" style={{ padding: 16, borderColor: isComplete ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.2)' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                             <div>
                               <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Client: {lot.client_name}</span>
@@ -914,9 +1211,9 @@ function App() {
                             {/* Lot Action Toolbar */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <button 
-                                onClick={() => handleViewLotHistory(lot.id, lot.lot_no)}
+                                onClick={() => handleViewLotTransactions(lot.id, lot.lot_no)}
                                 style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', padding: 4 }}
-                                title="View Lot History"
+                                title="View Audit Trail Logs"
                               >
                                 <History size={16} />
                               </button>
@@ -940,44 +1237,127 @@ function App() {
                               {['Superadmin', 'Manager'].includes(user.role) && (
                                 <button 
                                   onClick={() => handleToggleLotStatus(lot.id)}
-                                  style={{ background: 'none', border: 'none', color: lot.status === 'Complete' ? '#ffd400' : '#475569', cursor: 'pointer', padding: 4 }}
-                                  title="Toggle Status (Complete/In Process)"
+                                  style={{ 
+                                    background: 'none', 
+                                    border: 'none', 
+                                    color: isComplete ? '#ffd400' : '#475569', 
+                                    cursor: (isComplete && user.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
+                                    padding: 4 
+                                  }}
+                                  disabled={isComplete && user.role !== 'Superadmin'}
+                                  title={isComplete ? "Lock status (Only Superadmin can unlock)" : "Toggle Complete status"}
                                 >
-                                  {lot.status === 'Complete' ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+                                  {isComplete ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
                                 </button>
                               )}
 
-                              <span className={`badge ${lot.status === 'Complete' ? 'badge-success' : 'badge-warning'}`}>
+                              <span className={`badge ${isComplete ? 'badge-success' : 'badge-warning'}`}>
                                 {lot.status}
                               </span>
                             </div>
                           </div>
                           
                           {/* Shortage Discrepancy Highlight */}
-                          {shortage > 10 && (
-                            <div className="badge badge-danger" style={{ display: 'flex', width: '100%', marginBottom: 12, justifyContent: 'center' }}>
-                              <AlertTriangle size={12} /> Shortage Alert: {shortage} missing! (Report Sent)
+                          {shortage !== 0 && (
+                            <div className="badge badge-danger" style={{ display: 'flex', width: '100%', marginBottom: 12, justifyContent: 'center', background: 'rgba(239,68,68,0.1)', color: '#fca5a5', border: '0.5px solid rgba(239,68,68,0.2)' }}>
+                              <AlertTriangle size={12} /> Discrepancy: {shortage > 0 ? `${shortage} units Shortage` : `${Math.abs(shortage)} units Excess`} (Expected: {lot.qty_sent} vs Inward: {lot.received_qty})
                             </div>
                           )}
 
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: '0.8rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, fontSize: '0.75rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
                             <div>
-                              <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', textTransform: 'uppercase' }}>Received</div>
-                              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{lot.received_qty}</div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Inward</div>
+                              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>{lot.received_qty}</div>
                             </div>
                             <div>
-                              <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', textTransform: 'uppercase' }}>Dispatched</div>
-                              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#ffd400' }}>{lot.dispatched_qty}</div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Outward</div>
+                              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#10b981' }}>{lot.dispatched_qty}</div>
                             </div>
                             <div>
-                              <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', textTransform: 'uppercase' }}>Available</div>
-                              <div style={{ fontWeight: 800, fontSize: '1rem', color: lot.available > 0 ? '#f59e0b' : '#64748b' }}>{lot.available}</div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Return</div>
+                              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#f87171' }}>{lot.return_qty}</div>
                             </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Redispatch</div>
+                              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#60a5fa' }}>{lot.redispatch_qty}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Available</div>
+                              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: lot.available > 0 ? '#ffd400' : '#64748b' }}>{lot.available}</div>
+                            </div>
+                          </div>
+
+                          {/* Quick Action Transaction Toolbar for Active Lots */}
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button 
+                              disabled={isComplete && user.role !== 'Superadmin'}
+                              onClick={() => {
+                                setOutwardForm({ lot_id: lot.id, qty: '', remarks: '' });
+                                setShowOutwardModal(true);
+                              }}
+                              className="btn"
+                              style={{ 
+                                flex: 1, 
+                                margin: 0, 
+                                padding: '6px 8px', 
+                                fontSize: '0.72rem', 
+                                background: 'rgba(16, 185, 129, 0.1)', 
+                                border: '1px solid rgba(16, 185, 129, 0.25)', 
+                                color: '#10b981',
+                                cursor: (isComplete && user.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
+                                opacity: (isComplete && user.role !== 'Superadmin') ? 0.3 : 1
+                              }}
+                            >
+                              Dispatch Out
+                            </button>
+                            <button 
+                              disabled={isComplete && user.role !== 'Superadmin'}
+                              onClick={() => {
+                                setReturnForm({ lot_id: lot.id, qty: '', reason: 'Solder Defect', remarks: '' });
+                                setShowReturnModal(true);
+                              }}
+                              className="btn"
+                              style={{ 
+                                flex: 1, 
+                                margin: 0, 
+                                padding: '6px 8px', 
+                                fontSize: '0.72rem', 
+                                background: 'rgba(239, 68, 68, 0.1)', 
+                                border: '1px solid rgba(239, 68, 68, 0.25)', 
+                                color: '#ef4444',
+                                cursor: (isComplete && user.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
+                                opacity: (isComplete && user.role !== 'Superadmin') ? 0.3 : 1
+                              }}
+                            >
+                              Log Return
+                            </button>
+                            <button 
+                              disabled={isComplete && user.role !== 'Superadmin'}
+                              onClick={() => {
+                                setRedispatchForm({ lot_id: lot.id, qty: '', remarks: '' });
+                                setShowRedispatchModal(true);
+                              }}
+                              className="btn"
+                              style={{ 
+                                flex: 1, 
+                                margin: 0, 
+                                padding: '6px 8px', 
+                                fontSize: '0.72rem', 
+                                background: 'rgba(59, 130, 246, 0.1)', 
+                                border: '1px solid rgba(59, 130, 246, 0.25)', 
+                                color: '#3b82f6',
+                                cursor: (isComplete && user.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
+                                opacity: (isComplete && user.role !== 'Superadmin') ? 0.3 : 1
+                              }}
+                            >
+                              Redispatch
+                            </button>
                           </div>
                         </div>
                       );
                     })}
                   </div>
+
 
                   {/* Stock List Pagination Controls */}
                   {totalStockPages > 1 && (
@@ -1575,6 +1955,278 @@ function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Outward Transaction Form */}
+      {showOutwardModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#10b981', background: '#111827' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>Record Outward Dispatch</h3>
+              <button 
+                onClick={() => { setShowOutwardModal(false); setOutwardForm({ lot_id: '', qty: '', remarks: '' }); }}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleOutwardSubmit}>
+              <div className="form-group">
+                <label>Select Lot</label>
+                <select 
+                  required
+                  value={outwardForm.lot_id}
+                  onChange={e => setOutwardForm({...outwardForm, lot_id: e.target.value})}
+                >
+                  <option value="">-- Choose Lot --</option>
+                  {stockData.filter(l => l.status !== 'Complete' || user.role === 'Superadmin').map(l => (
+                    <option key={l.id} value={l.id}>Lot {l.lot_no} (Avail: {l.available} • Client: {l.client_name})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Quantity to Dispatch</label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  max={outwardForm.lot_id ? stockData.find(l => l.id === parseInt(outwardForm.lot_id))?.available : undefined}
+                  placeholder="e.g. 50"
+                  value={outwardForm.qty}
+                  onChange={e => setOutwardForm({...outwardForm, qty: e.target.value})}
+                />
+                {outwardForm.lot_id && (
+                  <div style={{ fontSize: '0.65rem', color: '#10b981', marginTop: 4 }}>
+                    * Max available to dispatch: {stockData.find(l => l.id === parseInt(outwardForm.lot_id))?.available} units
+                  </div>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Remarks</label>
+                <textarea 
+                  rows="2" 
+                  placeholder="e.g. Dispatched to Atomberg warehouse"
+                  value={outwardForm.remarks}
+                  onChange={e => setOutwardForm({...outwardForm, remarks: e.target.value})}
+                />
+              </div>
+              <div className="metrics-grid">
+                <button type="submit" className="btn" style={{ background: '#10b981', color: '#fff' }}>Record Dispatch</button>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowOutwardModal(false); setOutwardForm({ lot_id: '', qty: '', remarks: '' }); }} 
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Customer Return Form */}
+      {showReturnModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#ef4444', background: '#111827' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>Record Returned Stock</h3>
+              <button 
+                onClick={() => { setShowReturnModal(false); setReturnForm({ lot_id: '', qty: '', reason: 'Solder Defect', remarks: '' }); }}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleReturnSubmit}>
+              <div className="form-group">
+                <label>Select Lot</label>
+                <select 
+                  required
+                  value={returnForm.lot_id}
+                  onChange={e => setReturnForm({...returnForm, lot_id: e.target.value})}
+                >
+                  <option value="">-- Choose Lot --</option>
+                  {stockData.filter(l => l.status !== 'Complete' || user.role === 'Superadmin').map(l => (
+                    <option key={l.id} value={l.id}>Lot {l.lot_no} (Client: {l.client_name})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Quantity Returned</label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  placeholder="e.g. 10"
+                  value={returnForm.qty}
+                  onChange={e => setReturnForm({...returnForm, qty: e.target.value})}
+                />
+              </div>
+              <div className="form-group">
+                <label>Reason for Return</label>
+                <select 
+                  value={returnForm.reason}
+                  onChange={e => setReturnForm({...returnForm, reason: e.target.value})}
+                >
+                  <option value="Solder Defect">Solder Defect</option>
+                  <option value="Conformal Coating Discrepancy">Conformal Coating Discrepancy</option>
+                  <option value="Firmware Issue">Firmware Issue</option>
+                  <option value="Physical Transit Damage">Physical Transit Damage</option>
+                  <option value="Other Technical Discrepancy">Other Technical Discrepancy</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Remarks</label>
+                <textarea 
+                  rows="2" 
+                  placeholder="e.g. Customer reported failed testing at final assembly"
+                  value={returnForm.remarks}
+                  onChange={e => setReturnForm({...returnForm, remarks: e.target.value})}
+                />
+              </div>
+              <div className="metrics-grid">
+                <button type="submit" className="btn" style={{ background: '#ef4444', color: '#fff' }}>Record Return</button>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowReturnModal(false); setReturnForm({ lot_id: '', qty: '', reason: 'Solder Defect', remarks: '' }); }} 
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Redispatch Form */}
+      {showRedispatchModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#3b82f6', background: '#111827' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3b82f6' }}>Record Returned Lot Redispatch</h3>
+              <button 
+                onClick={() => { setShowRedispatchModal(false); setRedispatchForm({ lot_id: '', qty: '', remarks: '' }); }}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleRedispatchSubmit}>
+              <div className="form-group">
+                <label>Select Lot</label>
+                <select 
+                  required
+                  value={redispatchForm.lot_id}
+                  onChange={e => setRedispatchForm({...redispatchForm, lot_id: e.target.value})}
+                >
+                  <option value="">-- Choose Lot --</option>
+                  {stockData.filter(l => l.status !== 'Complete' || user.role === 'Superadmin').map(l => (
+                    <option key={l.id} value={l.id}>Lot {l.lot_no} (Avail: {l.available} • Client: {l.client_name})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Quantity to Redispatch</label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  max={redispatchForm.lot_id ? stockData.find(l => l.id === parseInt(redispatchForm.lot_id))?.available : undefined}
+                  placeholder="e.g. 5"
+                  value={redispatchForm.qty}
+                  onChange={e => setRedispatchForm({...redispatchForm, qty: e.target.value})}
+                />
+                {redispatchForm.lot_id && (
+                  <div style={{ fontSize: '0.65rem', color: '#3b82f6', marginTop: 4 }}>
+                    * Max available to redispatch: {stockData.find(l => l.id === parseInt(redispatchForm.lot_id))?.available} units
+                  </div>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Remarks</label>
+                <textarea 
+                  rows="2" 
+                  placeholder="e.g. Redispatched to client after successful rework & cleaning"
+                  value={redispatchForm.remarks}
+                  onChange={e => setRedispatchForm({...redispatchForm, remarks: e.target.value})}
+                />
+              </div>
+              <div className="metrics-grid">
+                <button type="submit" className="btn" style={{ background: '#3b82f6', color: '#fff' }}>Record Redispatch</button>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowRedispatchModal(false); setRedispatchForm({ lot_id: '', qty: '', remarks: '' }); }} 
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Lot Transactions History Timeline */}
+      {showTransactionsModal && selectedLotTransactions && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="glass-panel" style={{ width: '90%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto', padding: 20, borderColor: '#ffd400', background: '#111827' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffd400' }}>Lot {transactionsLotNo} - Stock Transaction History</h3>
+              <button 
+                onClick={() => { setShowTransactionsModal(false); setSelectedLotTransactions([]); }}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            {selectedLotTransactions.length === 0 ? (
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>No transaction logs recorded for this lot yet.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', paddingLeft: 12, borderLeft: '2px solid rgba(255,255,255,0.05)', marginLeft: 8 }}>
+                {selectedLotTransactions.map(trans => {
+                  const isCompletionAuto = trans.remarks && trans.remarks.includes('auto-completed');
+                  const pillColor = trans.transaction_type === 'Inward' ? '#ffd400' : trans.transaction_type === 'Outward' ? '#10b981' : trans.transaction_type === 'Return' ? '#ef4444' : trans.transaction_type === 'Redispatch' ? '#3b82f6' : '#8b5cf6';
+                  
+                  return (
+                    <div key={trans.id} style={{ position: 'relative' }}>
+                      <span style={{ 
+                        position: 'absolute', 
+                        left: -20, 
+                        top: 4, 
+                        width: 12, 
+                        height: 12, 
+                        borderRadius: '50%', 
+                        background: pillColor,
+                        boxShadow: `0 0 8px ${pillColor}`
+                      }}></span>
+                      
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: pillColor }}>
+                            {trans.transaction_type} {trans.qty > 0 && `(Qty: ${trans.qty})`}
+                          </h4>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                            {new Date(trans.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        </div>
+                        
+                        <p style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: 2, fontStyle: isCompletionAuto ? 'italic' : 'normal' }}>
+                          {trans.remarks}
+                        </p>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: 2 }}>
+                          Actioned By: {trans.actor_name || 'System / Auto'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
