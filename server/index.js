@@ -190,7 +190,7 @@ app.post('/api/auth/logout', authenticateJWT, async (req, res) => {
 // 1. GET /api/dashboard - Cumulative analytics and bottlenecks (Superadmin, Manager, Team Lead)
 app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
   const { lot_no } = req.query;
-  
+
   try {
     // Cumulative metrics
     let lotsQuery = 'SELECT * FROM lots';
@@ -200,7 +200,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
       lotsParams.push(lot_no);
     }
     const lotsRes = await query(lotsQuery, lotsParams);
-    
+
     let totalLots = lotsRes.rowCount;
     let totalReceived = 0;
     let totalDispatched = 0;
@@ -210,7 +210,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
     // Calculate totals
     for (const lot of lotsRes.rows) {
       totalReceived += lot.received_qty;
-      
+
       // Calculate dispatched for this lot
       const dispRes = await query(
         "SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND current_step = 14 AND status != 'Scrap'",
@@ -218,14 +218,14 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
       );
       const dispCount = parseInt(dispRes.rows[0].count);
       totalDispatched += dispCount;
-      
+
       // Calculate scrap for this lot
       const scrapRes = await query(
         "SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND status = 'Scrap'",
         [lot.id]
       );
       const scrapCount = parseInt(scrapRes.rows[0].count);
-      
+
       totalAvailable += (lot.received_qty - dispCount - scrapCount);
     }
 
@@ -239,10 +239,10 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
         countQuery += " AND lot_id = (SELECT id FROM lots WHERE lot_no = $2)";
         countParams.push(lot_no);
       }
-      
+
       const countRes = await query(countQuery, countParams);
       const countVal = parseInt(countRes.rows[0].count);
-      
+
       stepBreakdown.push({
         step_no: i,
         step_name: STEP_NAMES[i - 1],
@@ -351,7 +351,7 @@ app.get('/api/stock', authenticateJWT, async (req, res) => {
     const lotsSummary = [];
 
     for (const lot of lotsRes.rows) {
-      const available = lot.received_qty - lot.dispatched_qty + lot.return_qty - lot.redispatch_qty;
+      const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
 
       // Retrieve client name
       const clientRes = await query("SELECT name FROM clients WHERE id = $1", [lot.client_id]);
@@ -385,7 +385,7 @@ app.get('/api/stock/clients', authenticateJWT, async (req, res) => {
 // 3. POST /api/stock/inward - Ship lot inwards (Superadmin, Manager, Team Lead)
 app.post('/api/stock/inward', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
   const { lot_no, batch_no, pixel_pitch, client_name, qty_sent, qty_received, remarks } = req.body;
-  
+
   if (!lot_no || !batch_no || !pixel_pitch || !client_name || qty_sent === undefined || qty_received === undefined) {
     return res.status(400).json({ error: "Missing required fields." });
   }
@@ -425,7 +425,7 @@ app.post('/api/stock/inward', authenticateJWT, authorize(['Superadmin', 'Manager
     `, [newLot.id, qty_received, req.user.id, remarks || 'Initial inward lot entry']);
 
     // Check if auto-complete condition is met (if available is 0, e.g. received_qty is 0)
-    const available = newLot.received_qty - newLot.dispatched_qty + newLot.return_qty - newLot.redispatch_qty;
+    const available = (newLot.received_qty || 0) - (newLot.dispatched_qty || 0) + (newLot.return_qty || 0) - (newLot.redispatch_qty || 0);
     if (available === 0) {
       await client.query("UPDATE lots SET status = 'Complete' WHERE id = $1", [newLot.id]);
       await client.query(`
@@ -450,8 +450,8 @@ app.post('/api/stock/inward', authenticateJWT, authorize(['Superadmin', 'Manager
 async function checkAndAutoSetComplete(client, lotId, actorId) {
   const lotRes = await client.query('SELECT * FROM lots WHERE id = $1', [lotId]);
   const lot = lotRes.rows[0];
-  const available = lot.received_qty - lot.dispatched_qty + lot.return_qty - lot.redispatch_qty;
-  
+  const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
+
   if (available === 0 && lot.status !== 'Complete') {
     await client.query("UPDATE lots SET status = 'Complete' WHERE id = $1", [lotId]);
     await client.query(`
@@ -497,7 +497,7 @@ app.post('/api/stock/outward', authenticateJWT, authorize(['Superadmin', 'Manage
       return res.status(404).json({ error: "Lot not found." });
     }
     const lot = lotRes.rows[0];
-    const available = lot.received_qty - lot.dispatched_qty + lot.return_qty - lot.redispatch_qty;
+    const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
 
     // 2. Stock check
     if (qty > available) {
@@ -527,7 +527,7 @@ app.post('/api/stock/outward', authenticateJWT, authorize(['Superadmin', 'Manage
 
     await client.query('COMMIT');
 
-    const finalAvailable = updatedLot.received_qty - updatedLot.dispatched_qty + updatedLot.return_qty - updatedLot.redispatch_qty;
+    const finalAvailable = (updatedLot.received_qty || 0) - (updatedLot.dispatched_qty || 0) + (updatedLot.return_qty || 0) - (updatedLot.redispatch_qty || 0);
     res.json({ ...updatedLot, available: finalAvailable });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -584,7 +584,7 @@ app.post('/api/stock/return', authenticateJWT, authorize(['Superadmin', 'Manager
 
     await client.query('COMMIT');
 
-    const finalAvailable = updatedLot.received_qty - updatedLot.dispatched_qty + updatedLot.return_qty - updatedLot.redispatch_qty;
+    const finalAvailable = (updatedLot.received_qty || 0) - (updatedLot.dispatched_qty || 0) + (updatedLot.return_qty || 0) - (updatedLot.redispatch_qty || 0);
     res.json({ ...updatedLot, available: finalAvailable });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -619,7 +619,7 @@ app.post('/api/stock/redispatch', authenticateJWT, authorize(['Superadmin', 'Man
       return res.status(404).json({ error: "Lot not found." });
     }
     const lot = lotRes.rows[0];
-    const available = lot.received_qty - lot.dispatched_qty + lot.return_qty - lot.redispatch_qty;
+    const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
 
     // 2. Stock check
     if (qty > available) {
@@ -649,9 +649,8 @@ app.post('/api/stock/redispatch', authenticateJWT, authorize(['Superadmin', 'Man
 
     await client.query('COMMIT');
 
-    const finalAvailable = updatedLot.received_qty - updatedLot.dispatched_qty + updatedLot.received_qty - updatedLot.dispatched_qty + updatedLot.return_qty - updatedLot.redispatch_qty; // Note: wait, let's make it correct
-    const finalAvailableCorrect = updatedLot.received_qty - updatedLot.dispatched_qty + updatedLot.return_qty - updatedLot.redispatch_qty;
-    res.json({ ...updatedLot, available: finalAvailableCorrect });
+    const finalAvailable = (updatedLot.received_qty || 0) - (updatedLot.dispatched_qty || 0) + (updatedLot.return_qty || 0) - (updatedLot.redispatch_qty || 0);
+    res.json({ ...updatedLot, available: finalAvailable });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Redispatch error:', err);
@@ -713,7 +712,7 @@ app.get('/api/leaderboard', authenticateJWT, async (req, res) => {
         FROM panel_logs
         WHERE engineer_id = $1
       `, [eng.id]);
-      
+
       const faultyCount = parseInt(qualRes.rows[0].faulty_count || 0);
       const totalCount = parseInt(qualRes.rows[0].total_count || 0);
       const firstPassYield = totalCount > 0 ? ((totalCount - faultyCount) / totalCount) * 100 : 100.0;
@@ -731,9 +730,9 @@ app.get('/api/leaderboard', authenticateJWT, async (req, res) => {
 
       // Composite Score: (PCBs Repaired × 35%) + (First-pass Yield × 30%) + (Speed Score × 20%) + (Attendance × 15%)
       const overallScore = Math.round(
-        (pcbRepairedPoints * 0.35) + 
-        (firstPassYield * 0.30) + 
-        (speedScorePoints * 0.20) + 
+        (pcbRepairedPoints * 0.35) +
+        (firstPassYield * 0.30) +
+        (speedScorePoints * 0.20) +
         (attendancePct * 0.15)
       );
 
@@ -960,7 +959,7 @@ app.post('/api/repair/next', authenticateJWT, async (req, res) => {
     if (status === 'Scrap') {
       nextStatus = 'Scrap';
       scrapReason = remark || 'Scrapped during repair';
-      
+
       await query(`
         UPDATE panels 
         SET status = $1, scrap_reason = $2, assigned_engineer_id = $3, updated_at = NOW()
@@ -999,10 +998,10 @@ app.post('/api/repair/next', authenticateJWT, async (req, res) => {
       `, [panel_id, currentStepNo, engineer_id, remark || `Successfully completed step ${STEP_NAMES[currentStepNo - 1]}`], req.user);
     }
 
-    res.json({ 
-      success: true, 
-      current_step: nextStepNo, 
-      status: nextStatus 
+    res.json({
+      success: true,
+      current_step: nextStepNo,
+      status: nextStatus
     });
 
   } catch (err) {
@@ -1215,7 +1214,7 @@ app.post('/api/stock/toggle/:id', authenticateJWT, authorize(['Manager', 'Supera
     }
 
     const currentStatus = lotRes.rows[0].status;
-    
+
     // Lock check: Only superadmin can unlock a completed lot
     if (currentStatus === 'Complete' && req.user.role !== 'Superadmin') {
       await client.query('ROLLBACK');
@@ -1223,7 +1222,7 @@ app.post('/api/stock/toggle/:id', authenticateJWT, authorize(['Manager', 'Supera
     }
 
     const nextStatus = currentStatus === 'Complete' ? 'In Process' : 'Complete';
-    
+
     await client.query('UPDATE lots SET status = $1 WHERE id = $2', [nextStatus, req.params.id]);
 
     // Log the toggle action

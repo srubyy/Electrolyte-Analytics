@@ -2,16 +2,22 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 
 const { Pool } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create connection pool to electrolyte_db
+// Initialize dotenv in db.js to load environment variables before Pool instantiation
+dotenv.config();
+
+// Create connection pool to electrolyte_db using environment variables or defaults
 const pool = new Pool({
-  database: 'electrolyte_db',
-  host: 'localhost',
-  port: 5432,
+  user: process.env.DB_USER || undefined,
+  password: process.env.DB_PASSWORD || undefined,
+  database: process.env.DB_NAME || 'electrolyte_db',
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432'),
 });
 
 let useFallback = false;
@@ -81,7 +87,7 @@ function parseSqlValue(val) {
   if (val.toLowerCase() === 'null') return null;
   if (val.toLowerCase() === 'true') return true;
   if (val.toLowerCase() === 'false') return false;
-  
+
   if (val.startsWith("'") && val.endsWith("'")) {
     return val.slice(1, -1).replace(/''/g, "'");
   }
@@ -110,26 +116,26 @@ function parseSqlValue(val) {
 function parseInsertLine(line) {
   const insertIndex = line.indexOf('INSERT INTO ');
   if (insertIndex === -1) return;
-  
+
   const afterInsert = line.slice(insertIndex + 12);
   const openParen = afterInsert.indexOf('(');
   if (openParen === -1) return;
   const tblName = afterInsert.slice(0, openParen).trim().toLowerCase();
-  
+
   if (!tables[tblName]) {
     tables[tblName] = [];
   }
-  
+
   const closeParen = afterInsert.indexOf(')');
   if (closeParen === -1) return;
   const cols = afterInsert.slice(openParen + 1, closeParen).split(',').map(c => c.trim());
-  
+
   const valuesKeyword = afterInsert.indexOf('VALUES', closeParen);
   if (valuesKeyword === -1) return;
-  
+
   const valStartParen = afterInsert.indexOf('(', valuesKeyword);
   if (valStartParen === -1) return;
-  
+
   let parenDepth = 1;
   let inQuotes = false;
   let valEndParen = valStartParen;
@@ -147,24 +153,29 @@ function parseInsertLine(line) {
       }
     }
   }
-  
+
   const valStr = afterInsert.slice(valStartParen + 1, valEndParen);
   const rawVals = splitSqlValues(valStr);
   const parsedVals = rawVals.map(v => parseSqlValue(v));
-  
+
   const row = {};
   cols.forEach((col, idx) => {
     row[col] = parsedVals[idx];
   });
-  
+
   // Add auto-increment id if missing
   if (!row.id) {
     const maxId = tables[tblName].reduce((max, r) => Math.max(max, r.id || 0), 0);
     row.id = maxId + 1;
   }
-  
+
   // Enforce unique constraints
   if (tblName === 'lots') {
+
+    if (row.dispatched_qty === undefined) row.dispatched_qty = 0;
+    if (row.return_qty === undefined) row.return_qty = 0;
+    if (row.redispatch_qty === undefined) row.redispatch_qty = 0;
+
     const exists = tables.lots.some(r => r.lot_no === row.lot_no);
     if (exists) return;
   } else if (tblName === 'users') {
@@ -177,7 +188,7 @@ function parseInsertLine(line) {
     const exists = tables.panels.some(r => r.barcode === row.barcode);
     if (exists) return;
   }
-  
+
   tables[tblName].push(row);
 }
 
@@ -187,7 +198,7 @@ function initializeFallback() {
   console.log('🔄 ACTIVATING AUTO IN-MEMORY SQL DATABASE FALLBACK.');
   console.log('📁 Pre-seeding database from seed_new.sql...');
   console.log('----------------------------------------------------');
-  
+
   const seedPath = path.join(__dirname, 'seed_new.sql');
   if (fs.existsSync(seedPath)) {
     const seedSql = fs.readFileSync(seedPath, 'utf8');
@@ -238,7 +249,7 @@ testDbConnection();
 
 export const runInMemoryQuery = async (text, params = [], userContext = null) => {
   const q = text.replace(/\s+/g, ' ').trim();
-  
+
   // Swallow transaction and session directives safely
   if (q === 'BEGIN' || q === 'COMMIT' || q === 'ROLLBACK' || q.includes('SELECT set_config(')) {
     return { rows: [], rowCount: 1 };
@@ -250,14 +261,14 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     const user = tables.users.find(r => r.email.toLowerCase() === email && r.is_active !== false);
     return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
   }
-  
+
   if (q.includes('SELECT * FROM users WHERE id = $1 AND refresh_token = $2')) {
     const id = Number(params[0]);
     const token = params[1];
     const user = tables.users.find(r => r.id === id && r.refresh_token === token && r.is_active !== false);
     return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
   }
-  
+
   if (q.includes('UPDATE users SET refresh_token = $1 WHERE id = $2')) {
     const token = params[0];
     const id = Number(params[1]);
@@ -267,7 +278,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: user ? [user] : [], rowCount: user ? 1 : 0 };
   }
-  
+
   if (q.includes('UPDATE users SET refresh_token = NULL WHERE id = $1')) {
     const id = Number(params[0]);
     const user = tables.users.find(r => r.id === id);
@@ -276,7 +287,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: [], rowCount: 1 };
   }
-  
+
   if (q.includes("FROM users WHERE role = 'Employee'")) {
     const employees = tables.users.filter(r => r.role === 'Employee');
     if (q.includes('ORDER BY name ASC')) {
@@ -293,19 +304,19 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: clients, rowCount: clients.length };
   }
-  
+
   if (q.includes('SELECT name FROM clients WHERE id =')) {
     const id = Number(params[0]);
     const client = tables.clients.find(r => r.id === id);
     return { rows: client ? [{ name: client.name }] : [], rowCount: client ? 1 : 0 };
   }
-  
+
   if (q.includes('SELECT id FROM clients WHERE name =')) {
     const name = params[0];
     const client = tables.clients.find(r => r.name === name);
     return { rows: client ? [{ id: client.id }] : [], rowCount: client ? 1 : 0 };
   }
-  
+
   if (q.includes('INSERT INTO clients') && q.includes('RETURNING id')) {
     const name = params[0];
     const existing = tables.clients.find(r => r.name === name);
@@ -327,73 +338,73 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
   if (q.startsWith('SELECT * FROM lots') || q.startsWith('SELECT lots.*')) {
     const idMatch = q.match(/WHERE id = \$(\d+)/i);
     const lotNoMatch = q.match(/WHERE lot_no = \$(\d+)/i);
-    
+
     if (idMatch) {
       const idx = Number(idMatch[1]) - 1;
       const lot = tables.lots.find(r => r.id === Number(params[idx]));
       return { rows: lot ? [lot] : [], rowCount: lot ? 1 : 0 };
     }
-    
+
     if (lotNoMatch) {
       const idx = Number(lotNoMatch[1]) - 1;
       const lot = tables.lots.find(r => r.lot_no === Number(params[idx]));
       return { rows: lot ? [lot] : [], rowCount: lot ? 1 : 0 };
     }
-    
+
     // Dynamic Filter Engine
     let filtered = [...tables.lots];
-    
+
     const clientIdxMatch = q.match(/client_id = \$(\d+)/i);
     if (clientIdxMatch) {
       const val = params[Number(clientIdxMatch[1]) - 1];
       filtered = filtered.filter(r => r.client_id === Number(val));
     }
-    
+
     const statusIdxMatch = q.match(/status = \$(\d+)/i);
     if (statusIdxMatch) {
       const val = params[Number(statusIdxMatch[1]) - 1];
       filtered = filtered.filter(r => r.status === val);
     }
-    
+
     const searchIdxMatch = q.match(/CAST\(lot_no AS VARCHAR\) LIKE \$(\d+)/i);
     if (searchIdxMatch) {
       const rawVal = params[Number(searchIdxMatch[1]) - 1];
       const val = rawVal.replace(/%/g, '').toLowerCase();
-      filtered = filtered.filter(r => 
-        String(r.lot_no).includes(val) || 
+      filtered = filtered.filter(r =>
+        String(r.lot_no).includes(val) ||
         (r.batch_no && r.batch_no.toLowerCase().includes(val))
       );
     }
-    
+
     const startDateIdxMatch = q.match(/received_date >= \$(\d+)/i);
     if (startDateIdxMatch) {
       const val = params[Number(startDateIdxMatch[1]) - 1];
       filtered = filtered.filter(r => new Date(r.received_date) >= new Date(val));
     }
-    
+
     const endDateIdxMatch = q.match(/received_date <= \$(\d+)/i);
     if (endDateIdxMatch) {
       const val = params[Number(endDateIdxMatch[1]) - 1];
       filtered = filtered.filter(r => new Date(r.received_date) <= new Date(val));
     }
-    
+
     if (q.includes('ORDER BY received_date DESC')) {
       filtered.sort((a, b) => new Date(b.received_date) - new Date(a.received_date));
     }
-    
+
     return { rows: filtered, rowCount: filtered.length };
   }
-  
+
   if (q.includes('SELECT status FROM lots WHERE id =')) {
     const lot = tables.lots.find(r => r.id === Number(params[0]));
     return { rows: lot ? [{ status: lot.status }] : [], rowCount: lot ? 1 : 0 };
   }
-  
+
   if (q.includes('SELECT id FROM lots WHERE lot_no =')) {
     const lot = tables.lots.find(r => r.lot_no === Number(params[0]));
     return { rows: lot ? [{ id: lot.id }] : [], rowCount: lot ? 1 : 0 };
   }
-  
+
   if (q.includes('INSERT INTO lots') && q.includes('RETURNING *')) {
     const newLot = {
       id: tables.lots.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1,
@@ -413,7 +424,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     tables.lots.push(newLot);
     return { rows: [newLot], rowCount: 1 };
   }
-  
+
   if (q.includes('UPDATE lots SET status =')) {
     let status, id;
     if (q.includes("status = 'Complete'")) {
@@ -429,7 +440,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: lot ? [lot] : [], rowCount: lot ? 1 : 0 };
   }
-  
+
   if (q.includes('UPDATE lots') && q.includes('dispatched_qty = dispatched_qty +')) {
     const qty = Number(params[0]);
     const id = Number(params[1]);
@@ -439,7 +450,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: lot ? [lot] : [], rowCount: lot ? 1 : 0 };
   }
-  
+
   if (q.includes('UPDATE lots') && q.includes('return_qty = return_qty +')) {
     const qty = Number(params[0]);
     const id = Number(params[1]);
@@ -449,7 +460,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: lot ? [lot] : [], rowCount: lot ? 1 : 0 };
   }
-  
+
   if (q.includes('UPDATE lots') && q.includes('redispatch_qty = redispatch_qty +')) {
     const qty = Number(params[0]);
     const id = Number(params[1]);
@@ -482,7 +493,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     tables.lot_transactions.push(newTx);
     return { rows: [newTx], rowCount: 1 };
   }
-  
+
   if (q.includes('FROM lot_transactions t')) {
     const lotId = Number(params[0]);
     const txs = tables.lot_transactions.filter(r => r.lot_id === lotId);
@@ -503,13 +514,13 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     const count = tables.panels.filter(r => r.lot_id === lotId && r.current_step === 14 && r.status !== 'Scrap').length;
     return { rows: [{ count: String(count) }], rowCount: 1 };
   }
-  
+
   if (q.includes('SELECT COUNT(*) FROM panels WHERE lot_id =') && q.includes("status = 'Scrap'")) {
     const lotId = Number(params[0]);
     const count = tables.panels.filter(r => r.lot_id === lotId && r.status === 'Scrap').length;
     return { rows: [{ count: String(count) }], rowCount: 1 };
   }
-  
+
   if (q.includes('SELECT COUNT(*) FROM panels WHERE current_step =') && q.includes("status != 'Scrap'")) {
     const step = Number(params[0]);
     let filtered = tables.panels.filter(r => r.current_step === step && r.status !== 'Scrap');
@@ -524,7 +535,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     }
     return { rows: [{ count: String(filtered.length) }], rowCount: 1 };
   }
-  
+
   if (q.includes('FROM panel_logs a JOIN repair_steps s')) {
     const trendMap = {};
     for (const log of tables.panel_logs) {
@@ -561,7 +572,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     enriched.sort((a, b) => b.id - a.id);
     return { rows: enriched, rowCount: enriched.length };
   }
-  
+
   if (q.includes('SELECT a.*, s.name as step_name, e.name as engineer_name FROM panel_logs a')) {
     const panelId = Number(params[0]);
     const logs = tables.panel_logs.filter(r => r.panel_id === panelId);
@@ -588,13 +599,13 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     });
     return { rows: enriched, rowCount: enriched.length };
   }
-  
+
   if (q.includes('SELECT id FROM panels WHERE barcode =')) {
     const barcode = params[0];
     const panel = tables.panels.find(r => r.barcode === barcode);
     return { rows: panel ? [{ id: panel.id }] : [], rowCount: panel ? 1 : 0 };
   }
-  
+
   if (q.includes('SELECT id FROM panels WHERE lot_id =') && q.includes('sr_no =')) {
     const lotId = Number(params[0]);
     const srNo = Number(params[1]);
@@ -665,7 +676,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
     const currentStep = Number(params[1]);
     const engineerId = params[2] ? Number(params[2]) : null;
     const id = Number(params[3]);
-    
+
     const panel = tables.panels.find(r => r.id === id);
     if (panel) {
       panel.status = status;
@@ -764,24 +775,34 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
 const originalConnect = pool.connect;
 const originalQuery = pool.query;
 
-pool.connect = async () => {
+pool.connect = function (callback) {
   if (useFallback) {
-    return {
+    const mockClient = {
       query: async (text, params) => {
         return runInMemoryQuery(text, params);
       },
-      release: () => {}
+      release: () => { }
     };
+    if (callback) {
+      callback(null, mockClient, () => { });
+      return;
+    }
+    return Promise.resolve(mockClient);
   } else {
-    return originalConnect.call(pool);
+    return originalConnect.call(pool, callback);
   }
 };
 
-pool.query = async (text, params) => {
+pool.query = function (text, params, callback) {
   if (useFallback) {
-    return runInMemoryQuery(text, params);
+    const p = runInMemoryQuery(text, params);
+    if (callback) {
+      p.then(res => callback(null, res)).catch(err => callback(err));
+      return;
+    }
+    return p;
   } else {
-    return originalQuery.call(pool, text, params);
+    return originalQuery.call(pool, text, params, callback);
   }
 };
 
