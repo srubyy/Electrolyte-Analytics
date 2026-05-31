@@ -1250,7 +1250,7 @@ const getStepSum = async (lotId, stepNo, fields) => {
   const comRes = await query(`SELECT ${selectCommitted} FROM production_logs WHERE lot_id = $1 AND step_no = $2`, [lotId, stepNo]);
   
   const selectPending = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
-  const penRes = await query(`SELECT ${selectPending} FROM pending_production_logs WHERE lot_id = $1 AND step_no = $2 AND approval_status != 'Rejected'`, [lotId, stepNo]);
+  const penRes = await query(`SELECT ${selectPending} FROM pending_production_logs WHERE lot_id = $1 AND step_no = $2 AND approval_status NOT IN ('Approved', 'Rejected')`, [lotId, stepNo]);
   
   const result = {};
   fields.forEach(f => {
