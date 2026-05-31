@@ -802,20 +802,42 @@ function App() {
             className={`badge ${notification.type === 'danger' ? 'badge-danger' : notification.type === 'warning' ? 'badge-warning' : 'badge-success'}`}
             style={{
               position: 'fixed',
-              top: 24,
+              top: '50%',
               left: '50%',
-              transform: 'translateX(-50%)',
+              transform: 'translate(-50%, -50%)',
               zIndex: 9999,
               justifyContent: 'center',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
-              padding: '12px 24px',
-              animation: 'pulse-danger 2s infinite',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.85)',
+              padding: '24px 36px',
               width: 'auto',
               maxWidth: '90%',
-              minWidth: 260
+              minWidth: 300,
+              background: 'rgba(17, 24, 39, 0.98)',
+              backdropFilter: 'blur(20px)',
+              border: `2px solid ${
+                notification.type === 'danger' 
+                  ? 'var(--color-danger)' 
+                  : notification.type === 'warning' 
+                    ? 'var(--color-warning)' 
+                    : 'var(--color-primary)'
+              }`,
+              borderRadius: '24px',
+              fontSize: '1rem',
+              fontWeight: 800,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              animation: 'none'
             }}
           >
-            <AlertCircle size={14} />
+            <AlertCircle size={18} color={
+              notification.type === 'danger' 
+                ? 'var(--color-danger)' 
+                : notification.type === 'warning' 
+                  ? 'var(--color-warning)' 
+                  : 'var(--color-primary)'
+            } />
             {notification.message}
           </div>
         )}
