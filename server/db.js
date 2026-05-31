@@ -12,13 +12,15 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Create connection pool to electrolyte_db using environment variables or defaults
-const pool = new Pool({
-  user: process.env.DB_USER || undefined,
-  password: process.env.DB_PASSWORD || undefined,
-  database: process.env.DB_NAME || 'electrolyte_db',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL })
+  : new Pool({
+      user: process.env.DB_USER || undefined,
+      password: process.env.DB_PASSWORD || undefined,
+      database: process.env.DB_NAME || 'electrolyte_db',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432'),
+    });
 
 let useFallback = false;
 
