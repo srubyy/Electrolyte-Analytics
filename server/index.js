@@ -1338,7 +1338,8 @@ app.post('/api/production/log', authenticateJWT, authorize(['Employee']), async 
       return res.status(404).json({ error: "Selected lot does not exist." });
     }
     const lot = lotRes.rows[0];
-    const received_qty = lot.received_qty;
+    const step1 = await getStepSum(lotId, 1, ['qty_received']);
+    const received_qty = step1.qty_received > 0 ? step1.qty_received : lot.received_qty;
 
     // Strict Checksum & Conservation of Units Verification
     if (stepNo === 2) {
@@ -1518,6 +1519,12 @@ app.post('/api/production/manager-approve', authenticateJWT, authorize(['Manager
       WHERE id = $2
     `, [req.user.id, pending_log_id]);
 
+    // Adjust lot stats if Step 1 (Inward) is committed
+    if (pLog.step_no === 1) {
+      const recCount = parseInt(pLog.step_data.qty_received || 0);
+      await client.query('UPDATE lots SET received_qty = $1 WHERE id = $2', [recCount, pLog.lot_id]);
+    }
+
     // Adjust lot stats if Step 12 (Final Entry) is committed
     if (pLog.step_no === 12) {
       const finalCount = parseInt(pLog.step_data.entry_count || 0);
@@ -1578,18 +1585,21 @@ app.get('/api/production/stats/:lot_id', authenticateJWT, async (req, res) => {
     }
     const lot = lotRes.rows[0];
 
+    const step1Sum = await getStepSum(lotId, 1, ['qty_received']);
+    const effectiveReceivedQty = step1Sum.qty_received > 0 ? step1Sum.qty_received : lot.received_qty;
+
     const stats = {
       lot_no: lot.lot_no,
       batch_no: lot.batch_no,
       pixel_pitch: lot.pixel_pitch,
       qty_sent: lot.qty_sent,
-      received_qty: lot.received_qty,
+      received_qty: effectiveReceivedQty,
       dispatched_qty: lot.dispatched_qty,
       steps: {}
     };
 
     // Pull sums sequentially for the 12 steps
-    stats.steps[1] = { inward: lot.received_qty, expected: lot.qty_sent, shortage: lot.qty_sent - lot.received_qty };
+    stats.steps[1] = { inward: effectiveReceivedQty, expected: lot.qty_sent, shortage: lot.qty_sent - effectiveReceivedQty };
     stats.steps[2] = await getStepSum(lotId, 2, ['repairable_qty', 'scrap_qty']);
     stats.steps[3] = await getStepSum(lotId, 3, ['code_ok', 'code_not_ok']);
     stats.steps[4] = await getStepSum(lotId, 4, ['qty_passed', 'qty_failed']);
