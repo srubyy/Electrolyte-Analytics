@@ -190,7 +190,7 @@ app.post('/api/auth/logout', authenticateJWT, async (req, res) => {
 // 1. GET /api/dashboard - Cumulative analytics and bottlenecks (Superadmin, Manager, Team Lead)
 app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
   const { lot_no } = req.query;
-  
+
   try {
     // Cumulative metrics
     let lotsQuery = 'SELECT * FROM lots';
@@ -200,7 +200,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
       lotsParams.push(lot_no);
     }
     const lotsRes = await query(lotsQuery, lotsParams);
-    
+
     let totalLots = lotsRes.rowCount;
     let totalReceived = 0;
     let totalDispatched = 0;
@@ -210,7 +210,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
     // Calculate totals
     for (const lot of lotsRes.rows) {
       totalReceived += lot.received_qty;
-      
+
       // Calculate dispatched for this lot
       const dispRes = await query(
         "SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND current_step = 14 AND status != 'Scrap'",
@@ -218,14 +218,14 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
       );
       const dispCount = parseInt(dispRes.rows[0].count);
       totalDispatched += dispCount;
-      
+
       // Calculate scrap for this lot
       const scrapRes = await query(
         "SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND status = 'Scrap'",
         [lot.id]
       );
       const scrapCount = parseInt(scrapRes.rows[0].count);
-      
+
       totalAvailable += (lot.received_qty - dispCount - scrapCount);
     }
 
@@ -239,10 +239,10 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
         countQuery += " AND lot_id = (SELECT id FROM lots WHERE lot_no = $2)";
         countParams.push(lot_no);
       }
-      
+
       const countRes = await query(countQuery, countParams);
       const countVal = parseInt(countRes.rows[0].count);
-      
+
       stepBreakdown.push({
         step_no: i,
         step_name: STEP_NAMES[i - 1],
@@ -307,22 +307,51 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
   }
 });
 
-// 2. GET /api/stock - Fetch stock summary and lots (All authenticated users)
+// 2. GET /api/stock - Fetch stock summary and lots with server-side filters (All authenticated users)
 app.get('/api/stock', authenticateJWT, async (req, res) => {
+  const { client_id, status, search, start_date, end_date } = req.query;
+
   try {
-    const lotsRes = await query('SELECT * FROM lots ORDER BY lot_no DESC');
+    let queryText = 'SELECT * FROM lots';
+    const params = [];
+    const conditions = [];
+
+    if (client_id) {
+      params.push(client_id);
+      conditions.push(`client_id = $${params.length}`);
+    }
+
+    if (status) {
+      params.push(status);
+      conditions.push(`status = $${params.length}`);
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(CAST(lot_no AS VARCHAR) LIKE $${params.length} OR batch_no ILIKE $${params.length})`);
+    }
+
+    if (start_date) {
+      params.push(start_date);
+      conditions.push(`received_date >= $${params.length}`);
+    }
+
+    if (end_date) {
+      params.push(end_date);
+      conditions.push(`received_date <= $${params.length}`);
+    }
+
+    if (conditions.length > 0) {
+      queryText += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    queryText += ' ORDER BY lot_no DESC';
+
+    const lotsRes = await query(queryText, params);
     const lotsSummary = [];
 
     for (const lot of lotsRes.rows) {
-      // Dispatched count
-      const dispRes = await query("SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND current_step = 14 AND status != 'Scrap'", [lot.id]);
-      const dispatched = parseInt(dispRes.rows[0].count);
-
-      // Scrap count
-      const scrapRes = await query("SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND status = 'Scrap'", [lot.id]);
-      const scrap = parseInt(scrapRes.rows[0].count);
-
-      const available = lot.received_qty - dispatched - scrap;
+      const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
 
       // Retrieve client name
       const clientRes = await query("SELECT name FROM clients WHERE id = $1", [lot.client_id]);
@@ -331,8 +360,6 @@ app.get('/api/stock', authenticateJWT, async (req, res) => {
       lotsSummary.push({
         ...lot,
         client_name: clientName,
-        dispatched_qty: dispatched,
-        return_qty: scrap, // Returns mapped to scraps
         available
       });
     }
@@ -344,40 +371,309 @@ app.get('/api/stock', authenticateJWT, async (req, res) => {
   }
 });
 
+// Helper: Fetch clients list for filters (All authenticated users)
+app.get('/api/stock/clients', authenticateJWT, async (req, res) => {
+  try {
+    const clientsRes = await query('SELECT * FROM clients ORDER BY name ASC');
+    res.json(clientsRes.rows);
+  } catch (err) {
+    console.error('Clients fetch error:', err);
+    res.status(500).json({ error: "Failed to fetch clients." });
+  }
+});
+
 // 3. POST /api/stock/inward - Ship lot inwards (Superadmin, Manager, Team Lead)
 app.post('/api/stock/inward', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
   const { lot_no, batch_no, pixel_pitch, client_name, qty_sent, qty_received, remarks } = req.body;
-  
+
   if (!lot_no || !batch_no || !pixel_pitch || !client_name || qty_sent === undefined || qty_received === undefined) {
     return res.status(400).json({ error: "Missing required fields." });
   }
 
+  const client = await pool.connect();
   try {
-    const checkExist = await query('SELECT id FROM lots WHERE lot_no = $1', [lot_no]);
+    await client.query('BEGIN');
+
+    const checkExist = await client.query('SELECT id FROM lots WHERE lot_no = $1', [lot_no]);
     if (checkExist.rowCount > 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ error: `Lot number ${lot_no} already exists.` });
     }
 
     // Insert client if not exists
-    let clientRes = await query('SELECT id FROM clients WHERE name = $1', [client_name]);
+    let clientRes = await client.query('SELECT id FROM clients WHERE name = $1', [client_name]);
     let clientId;
     if (clientRes.rowCount === 0) {
-      const insClient = await query('INSERT INTO clients (name) VALUES ($1) RETURNING id', [client_name]);
+      const insClient = await client.query('INSERT INTO clients (name) VALUES ($1) RETURNING id', [client_name]);
       clientId = insClient.rows[0].id;
     } else {
       clientId = clientRes.rows[0].id;
     }
 
-    const insertRes = await query(`
+    const insertRes = await client.query(`
       INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, remarks)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [lot_no, batch_no, pixel_pitch, clientId, qty_sent, qty_received, remarks]);
 
-    res.status(201).json(insertRes.rows[0]);
+    const newLot = insertRes.rows[0];
+
+    // Log the Inward transaction
+    await client.query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, qty, actor_id, remarks)
+      VALUES ($1, 'Inward', $2, $3, $4)
+    `, [newLot.id, qty_received, req.user.id, remarks || 'Initial inward lot entry']);
+
+    // Check if auto-complete condition is met (if available is 0, e.g. received_qty is 0)
+    const available = (newLot.received_qty || 0) - (newLot.dispatched_qty || 0) + (newLot.return_qty || 0) - (newLot.redispatch_qty || 0);
+    if (available === 0) {
+      await client.query("UPDATE lots SET status = 'Complete' WHERE id = $1", [newLot.id]);
+      await client.query(`
+        INSERT INTO lot_transactions (lot_id, transaction_type, actor_id, remarks)
+        VALUES ($1, 'Status Toggle', $2, 'System auto-completed lot (Available quantity reached 0)')
+      `, [newLot.id, req.user.id]);
+      newLot.status = 'Complete';
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ ...newLot, client_name, available });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Inward error:', err);
     res.status(500).json({ error: "Failed to record inward shipment." });
+  } finally {
+    client.release();
+  }
+});
+
+// Helper function to handle status updates when Available reaches 0
+async function checkAndAutoSetComplete(client, lotId, actorId) {
+  const lotRes = await client.query('SELECT * FROM lots WHERE id = $1', [lotId]);
+  const lot = lotRes.rows[0];
+  const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
+
+  if (available === 0 && lot.status !== 'Complete') {
+    await client.query("UPDATE lots SET status = 'Complete' WHERE id = $1", [lotId]);
+    await client.query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, actor_id, remarks)
+      VALUES ($1, 'Status Toggle', $2, 'System auto-completed lot (Available quantity reached 0)')
+    `, [lotId, actorId]);
+    return 'Complete';
+  }
+  return lot.status;
+}
+
+// Helper function to check Complete state lock
+async function checkCompleteLock(client, lotId, userRole) {
+  const lotRes = await client.query('SELECT status FROM lots WHERE id = $1', [lotId]);
+  if (lotRes.rowCount === 0) return false;
+  if (lotRes.rows[0].status === 'Complete' && userRole !== 'Superadmin') {
+    return true; // Locked
+  }
+  return false; // Not locked (or superadmin bypass)
+}
+
+// POST /api/stock/outward - Record outward dispatch (Superadmin, Manager, Team Lead)
+app.post('/api/stock/outward', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
+  const { lot_id, qty, remarks } = req.body;
+  if (!lot_id || qty === undefined || qty <= 0) {
+    return res.status(400).json({ error: "Valid lot_id and positive quantity are required." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Lock check
+    const isLocked = await checkCompleteLock(client, lot_id, req.user.role);
+    if (isLocked) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Access denied. This lot is completed and locked. Only a Superadmin can perform transactions." });
+    }
+
+    const lotRes = await client.query('SELECT * FROM lots WHERE id = $1', [lot_id]);
+    if (lotRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: "Lot not found." });
+    }
+    const lot = lotRes.rows[0];
+    const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
+
+    // 2. Stock check
+    if (qty > available) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Insufficient stock available. Requested: ${qty}, Available: ${available}` });
+    }
+
+    // 3. Update outward
+    const updateRes = await client.query(`
+      UPDATE lots 
+      SET dispatched_qty = dispatched_qty + $1 
+      WHERE id = $2 
+      RETURNING *
+    `, [qty, lot_id]);
+
+    const updatedLot = updateRes.rows[0];
+
+    // 4. Log transaction
+    await client.query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, qty, actor_id, remarks)
+      VALUES ($1, 'Outward', $2, $3, $4)
+    `, [lot_id, qty, req.user.id, remarks || 'Outward shipment recorded']);
+
+    // 5. Auto-complete check
+    const nextStatus = await checkAndAutoSetComplete(client, lot_id, req.user.id);
+    updatedLot.status = nextStatus;
+
+    await client.query('COMMIT');
+
+    const finalAvailable = (updatedLot.received_qty || 0) - (updatedLot.dispatched_qty || 0) + (updatedLot.return_qty || 0) - (updatedLot.redispatch_qty || 0);
+    res.json({ ...updatedLot, available: finalAvailable });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Outward error:', err);
+    res.status(500).json({ error: "Failed to record outward shipment." });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/stock/return - Record customer return (Superadmin, Manager, Team Lead)
+app.post('/api/stock/return', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
+  const { lot_id, qty, reason, remarks } = req.body;
+  if (!lot_id || qty === undefined || qty <= 0) {
+    return res.status(400).json({ error: "Valid lot_id and positive quantity are required." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Lock check
+    const isLocked = await checkCompleteLock(client, lot_id, req.user.role);
+    if (isLocked) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Access denied. This lot is completed and locked. Only a Superadmin can perform transactions." });
+    }
+
+    // 2. Update return
+    const updateRes = await client.query(`
+      UPDATE lots 
+      SET return_qty = return_qty + $1 
+      WHERE id = $2 
+      RETURNING *
+    `, [qty, lot_id]);
+
+    if (updateRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: "Lot not found." });
+    }
+
+    const updatedLot = updateRes.rows[0];
+
+    // 3. Log transaction
+    const logRemarks = `Reason: ${reason || 'Not specified'}. ${remarks || ''}`.trim();
+    await client.query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, qty, actor_id, remarks)
+      VALUES ($1, 'Return', $2, $3, $4)
+    `, [lot_id, qty, req.user.id, logRemarks]);
+
+    // 4. Auto-complete check
+    const nextStatus = await checkAndAutoSetComplete(client, lot_id, req.user.id);
+    updatedLot.status = nextStatus;
+
+    await client.query('COMMIT');
+
+    const finalAvailable = (updatedLot.received_qty || 0) - (updatedLot.dispatched_qty || 0) + (updatedLot.return_qty || 0) - (updatedLot.redispatch_qty || 0);
+    res.json({ ...updatedLot, available: finalAvailable });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Return error:', err);
+    res.status(500).json({ error: "Failed to record returned stock." });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/stock/redispatch - Record returned lot redispatch (Superadmin, Manager, Team Lead)
+app.post('/api/stock/redispatch', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
+  const { lot_id, qty, remarks } = req.body;
+  if (!lot_id || qty === undefined || qty <= 0) {
+    return res.status(400).json({ error: "Valid lot_id and positive quantity are required." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Lock check
+    const isLocked = await checkCompleteLock(client, lot_id, req.user.role);
+    if (isLocked) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Access denied. This lot is completed and locked. Only a Superadmin can perform transactions." });
+    }
+
+    const lotRes = await client.query('SELECT * FROM lots WHERE id = $1', [lot_id]);
+    if (lotRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: "Lot not found." });
+    }
+    const lot = lotRes.rows[0];
+    const available = (lot.received_qty || 0) - (lot.dispatched_qty || 0) + (lot.return_qty || 0) - (lot.redispatch_qty || 0);
+
+    // 2. Stock check
+    if (qty > available) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Insufficient stock available. Requested: ${qty}, Available: ${available}` });
+    }
+
+    // 3. Update redispatch
+    const updateRes = await client.query(`
+      UPDATE lots 
+      SET redispatch_qty = redispatch_qty + $1 
+      WHERE id = $2 
+      RETURNING *
+    `, [qty, lot_id]);
+
+    const updatedLot = updateRes.rows[0];
+
+    // 4. Log transaction
+    await client.query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, qty, actor_id, remarks)
+      VALUES ($1, 'Redispatch', $2, $3, $4)
+    `, [lot_id, qty, req.user.id, remarks || 'Returned lot redispatch recorded']);
+
+    // 5. Auto-complete check
+    const nextStatus = await checkAndAutoSetComplete(client, lot_id, req.user.id);
+    updatedLot.status = nextStatus;
+
+    await client.query('COMMIT');
+
+    const finalAvailable = (updatedLot.received_qty || 0) - (updatedLot.dispatched_qty || 0) + (updatedLot.return_qty || 0) - (updatedLot.redispatch_qty || 0);
+    res.json({ ...updatedLot, available: finalAvailable });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Redispatch error:', err);
+    res.status(500).json({ error: "Failed to record lot redispatch." });
+  } finally {
+    client.release();
+  }
+});
+
+// GET /api/stock/transactions/:id - Fetch transaction history logs for a specific lot (All authenticated users)
+app.get('/api/stock/transactions/:id', authenticateJWT, async (req, res) => {
+  try {
+    const transRes = await query(`
+      SELECT t.*, u.name as actor_name 
+      FROM lot_transactions t
+      LEFT JOIN users u ON t.actor_id = u.id
+      WHERE t.lot_id = $1
+      ORDER BY t.created_at DESC
+    `, [req.params.id]);
+    res.json(transRes.rows);
+  } catch (err) {
+    console.error('Lot transactions fetch error:', err);
+    res.status(500).json({ error: "Failed to load lot transactions history." });
   }
 });
 
@@ -416,7 +712,7 @@ app.get('/api/leaderboard', authenticateJWT, async (req, res) => {
         FROM panel_logs
         WHERE engineer_id = $1
       `, [eng.id]);
-      
+
       const faultyCount = parseInt(qualRes.rows[0].faulty_count || 0);
       const totalCount = parseInt(qualRes.rows[0].total_count || 0);
       const firstPassYield = totalCount > 0 ? ((totalCount - faultyCount) / totalCount) * 100 : 100.0;
@@ -434,9 +730,9 @@ app.get('/api/leaderboard', authenticateJWT, async (req, res) => {
 
       // Composite Score: (PCBs Repaired × 35%) + (First-pass Yield × 30%) + (Speed Score × 20%) + (Attendance × 15%)
       const overallScore = Math.round(
-        (pcbRepairedPoints * 0.35) + 
-        (firstPassYield * 0.30) + 
-        (speedScorePoints * 0.20) + 
+        (pcbRepairedPoints * 0.35) +
+        (firstPassYield * 0.30) +
+        (speedScorePoints * 0.20) +
         (attendancePct * 0.15)
       );
 
@@ -663,7 +959,7 @@ app.post('/api/repair/next', authenticateJWT, async (req, res) => {
     if (status === 'Scrap') {
       nextStatus = 'Scrap';
       scrapReason = remark || 'Scrapped during repair';
-      
+
       await query(`
         UPDATE panels 
         SET status = $1, scrap_reason = $2, assigned_engineer_id = $3, updated_at = NOW()
@@ -702,10 +998,10 @@ app.post('/api/repair/next', authenticateJWT, async (req, res) => {
       `, [panel_id, currentStepNo, engineer_id, remark || `Successfully completed step ${STEP_NAMES[currentStepNo - 1]}`], req.user);
     }
 
-    res.json({ 
-      success: true, 
-      current_step: nextStepNo, 
-      status: nextStatus 
+    res.json({
+      success: true,
+      current_step: nextStepNo,
+      status: nextStatus
     });
 
   } catch (err) {
@@ -907,17 +1203,42 @@ app.get('/api/stock/history/:id', authenticateJWT, async (req, res) => {
 
 // 14. POST /api/stock/toggle/:id - Toggle lot complete/in-process status (Manager/Superadmin only)
 app.post('/api/stock/toggle/:id', authenticateJWT, authorize(['Manager', 'Superadmin']), async (req, res) => {
+  const client = await pool.connect();
   try {
-    const lotRes = await query('SELECT status FROM lots WHERE id = $1', [req.params.id]);
+    await client.query('BEGIN');
+
+    const lotRes = await client.query('SELECT status FROM lots WHERE id = $1', [req.params.id]);
     if (lotRes.rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ error: "Lot not found." });
     }
-    const nextStatus = lotRes.rows[0].status === 'Complete' ? 'In Process' : 'Complete';
-    await query('UPDATE lots SET status = $1 WHERE id = $2', [nextStatus, req.params.id]);
+
+    const currentStatus = lotRes.rows[0].status;
+
+    // Lock check: Only superadmin can unlock a completed lot
+    if (currentStatus === 'Complete' && req.user.role !== 'Superadmin') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Access denied. Lot is Complete and locked. Only a Superadmin can unlock it." });
+    }
+
+    const nextStatus = currentStatus === 'Complete' ? 'In Process' : 'Complete';
+
+    await client.query('UPDATE lots SET status = $1 WHERE id = $2', [nextStatus, req.params.id]);
+
+    // Log the toggle action
+    await client.query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, actor_id, remarks)
+      VALUES ($1, 'Status Toggle', $2, $3)
+    `, [req.params.id, req.user.id, `Lot status toggled from ${currentStatus} to ${nextStatus}`]);
+
+    await client.query('COMMIT');
     res.json({ success: true, status: nextStatus });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error('Lot status toggle error:', err);
     res.status(500).json({ error: "Failed to toggle lot status." });
+  } finally {
+    client.release();
   }
 });
 
