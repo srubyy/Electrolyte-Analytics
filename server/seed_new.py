@@ -40,13 +40,13 @@ lots = [
 lot_18_panels = []
 for sr in [100, 102, 103, 106, 109, 110, 116, 121, 124, 126, 130, 131, 132, 133, 138, 141, 142]:
     side = "Left" if sr % 2 == 0 else "Right"
-    lot_18_panels.append({"sr_no": sr, "side": side, "step": 14, "status": "Repairable"})
+    lot_18_panels.append({"sr_no": sr, "side": side, "step": 12, "status": "Repairable"})
 for i in range(150, 181):
     side = "Left" if i % 3 == 0 else "Right"
-    lot_18_panels.append({"sr_no": i, "side": side, "step": 14, "status": "Repairable"})
+    lot_18_panels.append({"sr_no": i, "side": side, "step": 12, "status": "Repairable"})
 for i in range(1, 14):
     side = "Left" if i % 2 == 0 else "Right"
-    lot_18_panels.append({"sr_no": i + 20, "side": side, "step": i, "status": "Repairable"})
+    lot_18_panels.append({"sr_no": i + 20, "side": side, "step": min(i, 12), "status": "Repairable"})
 
 lot_19_panels = [
     {"sr_no": 382, "side": "Right", "step": 3, "status": "Repairable", "engineer": "Sharmila N"},

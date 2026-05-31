@@ -10,5 +10,11 @@ CREATE TABLE IF NOT EXISTS lot_transactions (
 );
 
 -- Grant permissions to the electrolyte_app role for RLS testing and app operations
-GRANT ALL PRIVILEGES ON TABLE lot_transactions TO electrolyte_app;
-GRANT ALL PRIVILEGES ON SEQUENCE lot_transactions_id_seq TO electrolyte_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'electrolyte_app') THEN
+    GRANT ALL PRIVILEGES ON TABLE lot_transactions TO electrolyte_app;
+    GRANT ALL PRIVILEGES ON SEQUENCE lot_transactions_id_seq TO electrolyte_app;
+  END IF;
+END
+$$;
