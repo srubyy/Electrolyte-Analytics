@@ -10,6 +10,7 @@ import {
   RefreshCw, 
   ArrowRight, 
   Check, 
+  CheckCheck,
   X, 
   AlertTriangle, 
   Search, 
@@ -28,26 +29,77 @@ import {
   ToggleRight,
   Info,
   Users,
-  ShieldAlert
+  ShieldAlert,
+  Cpu,
+  Activity
 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 
 const STEP_NAMES = [
-  "Panel Assign",
-  "Repair Aging",
-  "Panel Opening",
-  "Silicon Removing",
-  "IC Removing",
-  "IC Cleaning",
-  "IC Replacing",
-  "Debugging",
-  "1st Aging",
-  "Applying Silicon",
-  "Half Fitting",
-  "Mesh Fitting",
-  "QC",
-  "Dispatch"
+  "Inward",
+  "Segregation",
+  "Programming",
+  "1st Testing",
+  "Debug",
+  "Entry",
+  "Cleaning",
+  "QC After Cleaning",
+  "Marking & Coating",
+  "Final Testing",
+  "Packing",
+  "Final Entry"
 ];
+
+const REMARK_PRESETS = {
+  2: [
+    "No visible physical damage or corrosion",
+    "Minor oxidation on pads, salvageable",
+    "PCB physically cracked, designated for scrap",
+    "Liquid damage detected, corrosion on power rail",
+    "Lot inspection complete"
+  ],
+  4: [
+    "All parameters within standard limits",
+    "High failed rate due to programming issues",
+    "Minor calibration failures",
+    "IC response timeout detected",
+    "Failed board sent to Debug station"
+  ],
+  5: [
+    "Replaced faulty oscillator IC",
+    "Power line short circuit repaired",
+    "Minor solder bridging resolved",
+    "Critical microcontroller defect - board scrapped",
+    "PCB restored and functional"
+  ],
+  7: [
+    "Flux residues completely removed via ultrasonic cleaning",
+    "Surface contamination cleared",
+    "Isopropyl Alcohol (IPA) clean cycle done",
+    "Board rejected due to solder mask peeling"
+  ],
+  8: [
+    "IPC-A-610 Class 2 standards verified",
+    "Flux completely cleared, board pristine",
+    "Minor solder bridge caught and reworked",
+    "Solder joint voids found under QFN"
+  ],
+  9: [
+    "Conformal coating applied uniformly",
+    "Silicone thermal paste applied",
+    "Serial labels verified and affixed"
+  ],
+  10: [
+    "Passes high-voltage burn-in test",
+    "All parameters within 100% IPC standards",
+    "Failed board sent to rework loop"
+  ],
+  11: [
+    "Antistatic ESD bubble wrap pack completed",
+    "Standard corrugated carton box pack",
+    "Bulk shipment box prepared"
+  ]
+};
 
 function App() {
   const { user, login, logout, apiFetch } = useAuth();
@@ -73,9 +125,68 @@ function App() {
   // Interactive filters & selections
   const [lotFilter, setLotFilter] = useState('');
   
+  // Lot-Level 12-Step Production Logging States
+  const [selectedProductionStep, setSelectedProductionStep] = useState(1);
+  const [productionLotId, setProductionLotId] = useState('');
+  const [productionPcbType, setProductionPcbType] = useState('GV3 Digital PCB');
+  const [stepInputs, setStepInputs] = useState({});
+  const [pendingProductionLogs, setPendingProductionLogs] = useState([]);
+  const [approvedProductionLogs, setApprovedProductionLogs] = useState([]);
+  const [lotProductionStats, setLotProductionStats] = useState(null);
+  const [rejectionLogInputId, setRejectionLogInputId] = useState(null);
+  const [rejectionLogText, setRejectionLogText] = useState('');
+  
+  // Station readiness checklist states
+  const [esdWristStrap, setEsdWristStrap] = useState(false);
+  const [ionizerOn, setIonizerOn] = useState(false);
+  const [esdMatGrounded, setEsdMatGrounded] = useState(false);
+  
   // Pagination State for Lots Table (5 items per page)
   const [currentStockPage, setCurrentStockPage] = useState(1);
   const lotsPerPage = 5;
+
+  const renderRemarkField = (stepNo) => {
+    const presets = REMARK_PRESETS[stepNo] || ["Log entry updated", "Standard procedure complete"];
+    const currentRemark = stepInputs.remarks || '';
+    
+    // Check if currentRemark is one of the presets
+    const isPreset = presets.includes(currentRemark) || currentRemark === '';
+    
+    return (
+      <div className="form-group" style={{ marginTop: 12 }}>
+        <label>Remarks</label>
+        <select
+          value={isPreset ? currentRemark : 'custom'}
+          onChange={e => {
+            const val = e.target.value;
+            if (val === 'custom') {
+              setStepInputs(prev => ({ ...prev, remarks: '' }));
+            } else {
+              setStepInputs(prev => ({ ...prev, remarks: val }));
+            }
+          }}
+          style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff', borderRadius: 8, width: '100%', cursor: 'pointer', marginBottom: 8 }}
+        >
+          <option value="">-- Select Standard Remark --</option>
+          {presets.map((preset, idx) => (
+            <option key={idx} value={preset}>{preset}</option>
+          ))}
+          <option value="custom">Custom Write-in...</option>
+        </select>
+        
+        {(!isPreset || currentRemark === '' || stepInputs.remarks === undefined) && (
+          <input
+            type="text"
+            required
+            placeholder="Type custom remark here..."
+            value={stepInputs.remarks || ''}
+            onChange={e => setStepInputs(prev => ({ ...prev, remarks: e.target.value }))}
+            style={{ width: '100%', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff', borderRadius: 8 }}
+          />
+        )}
+      </div>
+    );
+  };
 
   // History Modal States
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -190,6 +301,19 @@ function App() {
     return () => clearInterval(timer);
   }, [user, lotFilter]);
 
+  // Load Lot-level production logs & stats reactively
+  useEffect(() => {
+    if (user && view === 'repair') {
+      fetchPendingProductionLogs(selectedProductionStep);
+      if (productionLotId) {
+        fetchProductionLogs(productionLotId, selectedProductionStep);
+        fetchLotProductionStats(productionLotId);
+      } else if (stockData && stockData.length > 0) {
+        setProductionLotId(stockData[0].id);
+      }
+    }
+  }, [user, view, selectedProductionStep, productionLotId, stockData]);
+
   const fetchEngineers = async () => {
     try {
       const res = await apiFetch('/api/engineers');
@@ -279,6 +403,154 @@ function App() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Lot-Level 12-Step Production Logging Fetchers & Actions
+  const fetchProductionLogs = async (lotId = '', stepNo = '') => {
+    try {
+      let url = '/api/production/logs';
+      const params = [];
+      if (lotId) params.push(`lot_id=${lotId}`);
+      if (stepNo) params.push(`step_no=${stepNo}`);
+      if (params.length > 0) url += `?${params.join('&')}`;
+      
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setApprovedProductionLogs(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchPendingProductionLogs = async (stepNo = '') => {
+    try {
+      let url = '/api/production/pending';
+      if (stepNo) url += `?step_no=${stepNo}`;
+      
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setPendingProductionLogs(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchLotProductionStats = async (lotId) => {
+    if (!lotId) return;
+    try {
+      const res = await apiFetch(`/api/production/stats/${lotId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLotProductionStats(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleProductionLogSubmit = async (e) => {
+    e.preventDefault();
+    if (!productionLotId) {
+      showToast('Please select a lot first.', 'warning');
+      return;
+    }
+
+    try {
+      const res = await apiFetch('/api/production/log', {
+        method: 'POST',
+        body: JSON.stringify({
+          lot_id: parseInt(productionLotId),
+          step_no: selectedProductionStep,
+          pcb_type: productionPcbType,
+          step_data: stepInputs
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Log submitted successfully!');
+        setStepInputs({}); // reset inputs
+        fetchPendingProductionLogs(selectedProductionStep);
+        fetchProductionLogs(productionLotId, selectedProductionStep);
+        fetchLotProductionStats(productionLotId);
+      } else {
+        showToast(data.error || 'Failed to submit production log.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to production log API.', 'danger');
+    }
+  };
+
+  const tlApproveProductionLog = async (pendingLogId) => {
+    try {
+      const res = await apiFetch('/api/production/tl-approve', {
+        method: 'POST',
+        body: JSON.stringify({ pending_log_id: pendingLogId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Team Lead clearance verified. Advanced to Manager clearance stage.');
+        fetchPendingProductionLogs(selectedProductionStep);
+        fetchLotProductionStats(productionLotId);
+      } else {
+        showToast(data.error || 'Failed to approve log.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to API.', 'danger');
+    }
+  };
+
+  const managerApproveProductionLog = async (pendingLogId) => {
+    try {
+      const res = await apiFetch('/api/production/manager-approve', {
+        method: 'POST',
+        body: JSON.stringify({ pending_log_id: pendingLogId })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Manager clearance approved. Log successfully committed to production database!');
+        fetchPendingProductionLogs(selectedProductionStep);
+        fetchProductionLogs(productionLotId, selectedProductionStep);
+        fetchLotProductionStats(productionLotId);
+        fetchStock();
+        fetchDashboard();
+      } else {
+        showToast(data.error || 'Failed to commit log.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to API.', 'danger');
+    }
+  };
+
+  const rejectProductionLog = async (pendingLogId, reason) => {
+    if (!reason) {
+      showToast('Please enter a rejection reason.', 'warning');
+      return;
+    }
+    try {
+      const res = await apiFetch('/api/production/reject', {
+        method: 'POST',
+        body: JSON.stringify({ pending_log_id: pendingLogId, rejection_reason: reason })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Production log entry rejected. Operator notified.', 'warning');
+        setRejectionLogInputId(null);
+        setRejectionLogText('');
+        fetchPendingProductionLogs(selectedProductionStep);
+      } else {
+        showToast(data.error || 'Failed to reject log.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to API.', 'danger');
     }
   };
 
@@ -802,36 +1074,36 @@ function App() {
             className={`badge ${notification.type === 'danger' ? 'badge-danger' : notification.type === 'warning' ? 'badge-warning' : 'badge-success'}`}
             style={{
               position: 'fixed',
-              top: '50%',
+              top: '80px',
               left: '50%',
-              transform: 'translate(-50%, -50%)',
+              transform: 'translateX(-50%)',
               zIndex: 9999,
               justifyContent: 'center',
-              boxShadow: '0 20px 50px rgba(0,0,0,0.85)',
-              padding: '24px 36px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              padding: '12px 24px',
               width: 'auto',
               maxWidth: '90%',
-              minWidth: 300,
-              background: 'rgba(17, 24, 39, 0.98)',
-              backdropFilter: 'blur(20px)',
-              border: `2px solid ${
+              minWidth: 260,
+              background: 'rgba(17, 24, 39, 0.95)',
+              backdropFilter: 'blur(16px)',
+              border: `1.5px solid ${
                 notification.type === 'danger' 
                   ? 'var(--color-danger)' 
                   : notification.type === 'warning' 
                     ? 'var(--color-warning)' 
                     : 'var(--color-primary)'
               }`,
-              borderRadius: '24px',
-              fontSize: '1rem',
+              borderRadius: '30px',
+              fontSize: '0.8rem',
               fontWeight: 800,
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 8,
               animation: 'none'
             }}
           >
-            <AlertCircle size={18} color={
+            <AlertCircle size={14} color={
               notification.type === 'danger' 
                 ? 'var(--color-danger)' 
                 : notification.type === 'warning' 
@@ -1053,7 +1325,7 @@ function App() {
                               onClick={() => {
                                 if (step.count > 0) {
                                   setView('repair');
-                                  setBarcodeSearch(step.step_no === 14 ? 'ESRP2P5918E26128R0100' : 'ESRP2P5919E26128R0382');
+                                  setBarcodeSearch(step.step_no === 12 ? 'ESRP2P5918E26128R0100' : 'ESRP2P5919E26128R0382');
                                   showToast(`Pre-filling serial search for Step ${step.step_no}!`);
                                 }
                               }}
@@ -1576,378 +1848,721 @@ function App() {
                   <div className="app-header">
                     <div>
                       <span className="app-subtitle">Operations Terminal</span>
-                      <h1 className="app-title"><Wrench size={20} color="#ffd400" /> Repair Station</h1>
+                      <h1 className="app-title"><Wrench size={20} color="#ffd400" /> Refurbishment Pipeline Station</h1>
                     </div>
                     
-                    {/* Only Superadmin, Manager, Team Lead can assign panels */}
-                    {['Superadmin', 'Manager', 'Team Lead'].includes(user.role) && (
-                      <button 
-                        onClick={() => setShowAssignForm(!showAssignForm)} 
-                        className="badge badge-success"
-                        style={{ cursor: 'pointer', background: '#ffd400', color: '#000', border: 'none', padding: '6px 12px' }}
+                    {/* Active Lot selector in the header for quick lot selection */}
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>Active Lot:</label>
+                      <select
+                        value={productionLotId}
+                        onChange={e => { setProductionLotId(e.target.value); fetchLotProductionStats(e.target.value); setStepInputs({}); }}
+                        style={{ width: 'auto', minWidth: 200, padding: '6px 12px', background: 'rgba(0,0,0,0.4)', color: '#fff', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
                       >
-                        <Plus size={14} /> Assign Panel
-                      </button>
-                    )}
+                        <option value="">-- Select Active Lot --</option>
+                        {stockData.map(l => (
+                          <option key={l.id} value={l.id}>Lot {l.lot_no} ({l.batch_no} • {l.pixel_pitch})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 12-Step Visual Pipeline Selector */}
+                  <div className="glass-panel" style={{ padding: 16, marginBottom: 20 }}>
+                    <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Wrench size={14} /> Interactive 12-Step Pipeline Flow (Click to Select Step)
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+                      {STEP_NAMES.map((name, index) => {
+                        const stepNo = index + 1;
+                        const isActive = selectedProductionStep === stepNo;
+                        return (
+                          <div
+                            key={stepNo}
+                            onClick={() => { setSelectedProductionStep(stepNo); setStepInputs({}); }}
+                            style={{
+                              padding: '10px 8px',
+                              borderRadius: 8,
+                              background: isActive ? 'rgba(255, 212, 0, 0.08)' : 'rgba(255,255,255,0.015)',
+                              border: isActive ? '1px solid #ffd400' : '1px solid rgba(255,255,255,0.03)',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              transition: 'all 0.2s',
+                              boxShadow: isActive ? '0 0 10px rgba(255, 212, 0, 0.15)' : 'none'
+                            }}
+                          >
+                            <div style={{ fontSize: '0.7rem', color: isActive ? '#ffd400' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: isActive ? 800 : 500, color: isActive ? '#fff' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>{name}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="widescreen-grid">
-                    {/* Left Column: Search Panel & Assignment Form in a single glass-panel */}
-                    <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {/* Left Column: Lot Status & Checksum Vitals Monitor */}
+                    <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20, height: 'fit-content' }}>
                       <div>
-                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 12 }}>Find Panel by Barcode</h3>
-                        <form onSubmit={handlePanelSearch} style={{ display: 'flex', gap: 8 }}>
-                          <div style={{ position: 'relative', flex: 1 }}>
-                            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                            <input 
-                              type="text" 
-                              placeholder="Scan/Enter barcode or Sr No" 
-                              value={barcodeSearch}
-                              onChange={e => setBarcodeSearch(e.target.value)}
-                              style={{ paddingLeft: 36 }}
-                            />
+                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Cpu size={16} /> Lot Checksum & Yield Vitals
+                        </h3>
+                        {lotProductionStats ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                              <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Inward Received</span>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffd400', marginTop: 4 }}>
+                                  {lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>PCBs</span>
+                                </div>
+                              </div>
+                              <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                                <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Shortage vs Sent</span>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: lotProductionStats.qty_sent - lotProductionStats.received_qty > 0 ? '#f87171' : '#10b981', marginTop: 4 }}>
+                                  {lotProductionStats.qty_sent - lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>units</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Step Vitals progress bars to verify conservation */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>Stage-wise Active Throughput:</div>
+                              
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                <span>Step 1: Inward (Lot Received)</span>
+                                <span style={{ color: '#ffd400', fontWeight: 700 }}>{lotProductionStats.received_qty} units</span>
+                              </div>
+                              
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                <span>Step 2: Segregation</span>
+                                <span style={{ color: '#ffd400', fontWeight: 700 }}>
+                                  {parseInt(lotProductionStats.steps[2]?.repairable_qty || 0)} Rep • {parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)} Scrap
+                                </span>
+                              </div>
+                              {/* Visual Checksum warning for Step 2 */}
+                              {parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) > 0 &&
+                               parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) !== lotProductionStats.received_qty && (
+                                <div style={{ color: '#ef4444', fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.05)', padding: 6, borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                                  ⚠️ DISCREPANCY DETECTED: Segregated count ({parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)}) does not match Inward count ({lotProductionStats.received_qty})!
+                                </div>
+                              )}
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                <span>Step 3: Programming</span>
+                                <span style={{ color: '#ffd400', fontWeight: 700 }}>
+                                  {parseInt(lotProductionStats.steps[3]?.code_ok || 0)} OK • {parseInt(lotProductionStats.steps[3]?.code_not_ok || 0)} Fail
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                <span>Step 4: 1st Testing</span>
+                                <span style={{ color: '#ffd400', fontWeight: 700 }}>
+                                  {parseInt(lotProductionStats.steps[4]?.qty_passed || 0)} Passed • {parseInt(lotProductionStats.steps[4]?.qty_failed || 0)} Failed
+                                </span>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                                <span>Step 12: Final Entry (Dispatch)</span>
+                                <span style={{ color: '#10b981', fontWeight: 700 }}>{parseInt(lotProductionStats.steps[12]?.entry_count || 0)} Dispatched</span>
+                              </div>
+                            </div>
                           </div>
-                          <button type="submit" className="btn" style={{ width: 'auto', marginTop: 0, padding: '10px 16px' }}>Find</button>
-                        </form>
-                        <div style={{ marginTop: 8, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          * Try pre-filled Lot 18 barcodes, e.g. <span style={{ color: '#ffd400', textDecoration: 'underline', cursor: 'pointer' }} onClick={() => { setBarcodeSearch('ESRP2P5918E26128R0100'); }}>ESRP2P5918E26128R0100</span> or Lot 19 <span style={{ color: '#ffd400', textDecoration: 'underline', cursor: 'pointer' }} onClick={() => { setBarcodeSearch('ESRP2P5919E26128R0382'); }}>ESRP2P5919E26128R0382</span>.
-                        </div>
-                        {searchError && (
-                          <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem', marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <AlertCircle size={12} /> {searchError}
+                        ) : (
+                          <div style={{ 
+                            padding: '16px', 
+                            background: 'rgba(255, 255, 255, 0.01)', 
+                            border: '1px dashed rgba(255, 255, 255, 0.06)', 
+                            borderRadius: 10, 
+                            textAlign: 'center',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 8,
+                            margin: '8px 0'
+                          }}>
+                            <span className="pulse-indicator" style={{ background: '#e11d48', width: 8, height: 8, borderRadius: '50%', boxShadow: '0 0 10px #e11d48' }}></span>
+                            <div style={{ fontSize: '0.72rem', color: '#fda4af', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telemetry Link Offline</div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                              Select an active production lot from the header to link this station terminal and synchronize real-time stage checksum metrics.
+                            </div>
                           </div>
                         )}
                       </div>
 
-                      {/* Assign Panel Form Drawer */}
-                      {showAssignForm && (
-                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: 12, color: '#ffd400' }}>Step 1: Panel Assignment Form</h3>
-                          <form onSubmit={handlePanelAssign}>
-                            <div className="form-group">
-                              <label>Select Lot</label>
-                              <select 
-                                required
-                                value={assignForm.lot_no}
-                                onChange={e => setAssignForm({...assignForm, lot_no: e.target.value})}
-                              >
-                                <option value="">-- Choose Active Lot --</option>
-                                <option value="18">Lot 18 (Batch DX128 • P5.9)</option>
-                                <option value="19">Lot 19 (Batch DX128 • P5.9)</option>
-                                <option value="20">Lot 20 (Batch DX109 • P5.9)</option>
-                              </select>
-                            </div>
-                            <div className="form-group">
-                              <label>Serial Number (Sr No)</label>
-                              <input 
-                                type="number" 
-                                required 
-                                placeholder="e.g. 385" 
-                                value={assignForm.sr_no}
-                                onChange={e => setAssignForm({...assignForm, sr_no: e.target.value})}
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>Panel Side</label>
-                              <select 
-                                value={assignForm.side}
-                                onChange={e => setAssignForm({...assignForm, side: e.target.value})}
-                              >
-                                <option value="Left">Left Side</option>
-                                <option value="Right">Right Side</option>
-                              </select>
-                            </div>
+                      {/* PCB Type selection */}
+                      <div>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>PCB Product Type:</label>
+                        <select
+                          value={productionPcbType}
+                          onChange={e => setProductionPcbType(e.target.value)}
+                          style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff', borderRadius: 8, width: '100%', cursor: 'pointer' }}
+                        >
+                          <option value="GV3 Digital PCB">GV3 Digital PCB</option>
+                          <option value="GV2 Remote Main PCB">GV2 Remote Main PCB</option>
+                          <option value="GV4 Studio+ Remote PCB">GV4 Studio+ Remote PCB</option>
+                          <option value="GV3 Power PCB">GV3 Power PCB</option>
+                          <option value="GV4 Alpha Regulator PCB">GV4 Alpha Regulator PCB</option>
+                          <option value="GV2 Regulator">GV2 Regulator</option>
+                        </select>
+                      </div>
 
-                            <div className="form-group">
-                              <label>Assign to Worker</label>
-                              <select 
-                                value={assignForm.assigned_engineer_id}
-                                onChange={e => setAssignForm({...assignForm, assigned_engineer_id: parseInt(e.target.value)})}
-                              >
-                                {engineers.map(eng => (
-                                  <option key={eng.id} value={eng.id}>{eng.name}</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div className="badge badge-info" style={{ display: 'flex', width: '100%', marginBottom: 12, justifyContent: 'center', fontSize: '0.7rem' }}>
-                              * Barcode will be auto-generated according to strict Electrolyte standard ESRP2 format.
-                            </div>
-                            <div className="metrics-grid">
-                              <button type="submit" className="btn">Assign Panel</button>
-                              <button type="button" onClick={() => setShowAssignForm(false)} className="btn btn-secondary">Cancel</button>
-                            </div>
-                          </form>
-                        </div>
-                      )}
-
-                      {/* Recent Scans Cache Widget */}
+                      {/* Station ESD & Safety Checklist */}
                       <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <History size={14} /> Recent Workstation Scans
+                        <h4 style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                          <ShieldAlert size={14} color="#ffd400" /> ESD Station Safety Readiness
                         </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {recentScans.map((code, idx) => (
-                            <div 
-                              key={idx} 
-                              onClick={() => { setBarcodeSearch(code); setSearchedPanel(null); }}
-                              style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center', 
-                                padding: '8px 12px', 
-                                background: barcodeSearch === code ? 'rgba(255, 212, 0, 0.05)' : 'rgba(255,255,255,0.015)', 
-                                border: barcodeSearch === code ? '1px solid #ffd400' : '1px solid rgba(255,255,255,0.03)', 
-                                borderRadius: 8, 
-                                cursor: 'pointer',
-                                fontSize: '0.72rem',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              <span style={{ fontFamily: 'monospace', color: barcodeSearch === code ? '#ffd400' : '#cbd5e1' }}>{code}</span>
-                              <ArrowRight size={12} color={barcodeSearch === code ? '#ffd400' : 'var(--text-muted)'} />
-                            </div>
-                          ))}
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.72rem', color: esdWristStrap ? '#fff' : 'var(--text-muted)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={esdWristStrap} 
+                              onChange={e => setEsdWristStrap(e.target.checked)} 
+                              style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#ffd400' }} 
+                            />
+                            <span>ESD Wrist Strap Connected (Tested &lt;1.0 MΩ)</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.72rem', color: ionizerOn ? '#fff' : 'var(--text-muted)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={ionizerOn} 
+                              onChange={e => setIonizerOn(e.target.checked)} 
+                              style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#ffd400' }} 
+                            />
+                            <span>Clean Air Ionizer Operational</span>
+                          </label>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.72rem', color: esdMatGrounded ? '#fff' : 'var(--text-muted)' }}>
+                            <input 
+                              type="checkbox" 
+                              checked={esdMatGrounded} 
+                              onChange={e => setEsdMatGrounded(e.target.checked)} 
+                              style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#ffd400' }} 
+                            />
+                            <span>Anti-Static Desk Mat Properly Grounded</span>
+                          </label>
                         </div>
-                      </div>
 
-                      {/* Workflow Steps Cheatsheet Reference Widget */}
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-blue)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Info size={14} /> Refurbishment Step Reference
-                        </h4>
-                        <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 10, lineHeight: 1.4 }}>
-                          Standard 14-step high-precision refurb pipeline. High-tier vetted steps:
-                        </p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.65rem' }}>
-                          <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.02)' }}>
-                            <strong style={{ color: '#ffd400' }}>Step 1:</strong> Panel Assignment
-                          </div>
-                          <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.02)' }}>
-                            <strong style={{ color: '#ffd400' }}>Step 3:</strong> Sub Frame Vetting
-                          </div>
-                          <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.02)' }}>
-                            <strong style={{ color: '#ffd400' }}>Step 7:</strong> Solder Reflow QC
-                          </div>
-                          <div style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.01)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.02)' }}>
-                            <strong style={{ color: '#ffd400' }}>Step 14:</strong> Final Vetting OK
-                          </div>
+                        <div style={{ 
+                          marginTop: 10, 
+                          padding: '6px 12px', 
+                          borderRadius: 6, 
+                          background: (esdWristStrap && ionizerOn && esdMatGrounded) ? 'rgba(16, 185, 129, 0.06)' : 'rgba(245, 158, 11, 0.05)',
+                          border: (esdWristStrap && ionizerOn && esdMatGrounded) ? '1px solid rgba(16, 185, 129, 0.15)' : '1px solid rgba(245, 158, 11, 0.1)',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: 6,
+                          fontSize: '0.62rem', 
+                          fontWeight: 800, 
+                          color: (esdWristStrap && ionizerOn && esdMatGrounded) ? '#10b981' : '#f59e0b',
+                          transition: 'all 0.3s'
+                        }}>
+                          {(esdWristStrap && ionizerOn && esdMatGrounded) ? (
+                            <>🛡️ STATION SAFE • ESD IPC COMPLIANT</>
+                          ) : (
+                            <>⚠️ STATION WARNING • RUN READINESS CHECKLIST</>
+                          )}
                         </div>
-                      </div>
-
-                      {/* Workstation Target & Yield */}
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                          <TrendingUp size={14} /> Workstation Target & Yield
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: '0.72rem' }}>
-                          <div style={{ padding: 8, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.58rem', textTransform: 'uppercase' }}>Daily Output Goal</span>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', marginTop: 4 }}>
-                              28 / <span style={{ color: 'var(--text-muted)' }}>40 boards</span>
-                            </div>
-                          </div>
-                          <div style={{ padding: 8, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
-                            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.58rem', textTransform: 'uppercase' }}>First Pass Yield</span>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: 4 }}>
-                              96.4% <span style={{ fontSize: '0.6rem', color: '#10b981', fontWeight: 700 }}>HIGH</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Defect Standards Reference Deck */}
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-blue)', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                          <ShieldCheck size={14} /> Defect Vetting Standard Reference
-                        </h4>
-                        <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4, margin: 0 }}>
-                          IPC-A-610 Class 3 High-Performance PCB Rework Guidelines:
-                        </p>
-                        <ul style={{ paddingLeft: 16, margin: 0, fontSize: '0.65rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          <li><strong>Solder Bridging</strong>: Zero tolerance; solder connection between separate paths is rejectable.</li>
-                          <li><strong>Pin Hole / Voiding</strong>: Outgassing voids must not exceed 25% of overall solder joint area.</li>
-                          <li><strong>Silicon Coating</strong>: Continuous uniform coverage (&gt;0.8mm thick) with zero bubbles.</li>
-                        </ul>
                       </div>
                     </div>
 
-                    {/* Right Column: Searched Panel Workspace or Idle Workspace Placeholder unified in a single glass-panel */}
+                    {/* Right Column: Dynamic Form (Employee) OR Pending Approvals List (TL / Manager) */}
                     <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      {searchedPanel ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1 }}>
-                          {/* Active Quality-Vetting Locks & Warnings */}
-                          {searchedPanel.is_locked && (
-                            <div className="alert-card warning" style={{ display: 'flex', width: '100%', justifyContent: 'center', fontSize: '0.78rem', animation: 'pulse-danger 2s infinite', margin: 0 }}>
-                              <Lock size={14} /> 🔒 AWAITING QUALITY CLEARANCE: ({searchedPanel.pending_info.approval_status}) by {searchedPanel.pending_info.engineer_name}.
-                            </div>
-                          )}
+                      {/* Render for Employee - Active Step Form Entry */}
+                      {user.role === 'Employee' ? (
+                        <div>
+                          <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16 }}>
+                            Log Production Batch - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}
+                          </h2>
 
-                          {searchedPanel.rework_info && (
-                            <div className="alert-card" style={{ display: 'flex', width: '100%', justifyContent: 'center', fontSize: '0.78rem', background: 'rgba(239,68,68,0.15)', border: '1px solid #ef4444', color: '#fca5a5', margin: 0 }}>
-                              <AlertTriangle size={14} /> ⚠️ REWORK REQUESTED: Previous log was rejected. Feedback: "{searchedPanel.rework_info.rejection_reason}".
-                            </div>
-                          )}
-
-                          {/* Panel Metadata Card */}
-                          <div style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(255, 255, 255, 0.015)' }}>
-                            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>REFURBISHMENT INFORMATION</span>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: 4, color: searchedPanel.panel.status === 'Scrap' ? '#ef4444' : '#fff', marginBottom: 0 }}>
-                              {searchedPanel.panel.barcode}
-                            </h2>
-                            
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginTop: 12, fontSize: '0.8rem' }}>
-                              <div>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>LOT NO</span>
-                                <div style={{ fontWeight: 700 }}>Lot {searchedPanel.panel.lot_no}</div>
-                              </div>
-                              <div>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>BATCH & PITCH</span>
-                                <div style={{ fontWeight: 700 }}>{searchedPanel.panel.batch_no} • {searchedPanel.panel.pixel_pitch}</div>
-                              </div>
-                              <div>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>SERIAL & SIDE</span>
-                                <div style={{ fontWeight: 700 }}>Sr No {searchedPanel.panel.sr_no} ({searchedPanel.panel.side} Side)</div>
-                              </div>
-                              <div>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>ASSIGNED TO</span>
-                                <div style={{ fontWeight: 700, color: '#ffd400' }}>{searchedPanel.panel.engineer_name || "Unassigned"}</div>
-                              </div>
-                              <div>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>CURRENT PIPELINE STEP</span>
-                                <div style={{ fontWeight: 800, color: '#ffd400' }}>
-                                  {searchedPanel.panel.status === 'Scrap' ? 'SCRAP' : `Step ${searchedPanel.panel.current_step} OF 14`}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Step Action Form (Toggled depending on lock state and assignment) */}
-                          {searchedPanel.panel.status !== 'Scrap' && searchedPanel.panel.current_step < 14 && (
-                            <div style={{ padding: 16, borderRadius: 12, border: searchedPanel.is_locked ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(16, 185, 129, 0.2)', background: 'rgba(255, 255, 255, 0.015)' }}>
-                              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: 12, color: searchedPanel.is_locked ? '#475569' : '#ffd400', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <CheckCircle size={16} />
-                                Progress step: {STEP_NAMES[searchedPanel.panel.current_step - 1]}
-                              </h3>
-                              
-                              <form onSubmit={handleRepairAction}>
+                          <form onSubmit={handleProductionLogSubmit}>
+                            {/* RENDER STEP DYNAMIC FIELDS */}
+                            {selectedProductionStep === 1 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                                 <div className="form-group">
-                                  <label style={{ color: searchedPanel.is_locked ? '#475569' : 'var(--text-muted)' }}>Work/Inspection Verdict</label>
-                                  <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                                    <button 
-                                      type="button" 
-                                      disabled={searchedPanel.is_locked}
-                                      onClick={() => setRepairAction({...repairAction, status: 'OK'})}
-                                      className={`btn ${repairAction.status === 'OK' ? '' : 'btn-secondary'}`}
-                                      style={{ flex: 1, padding: 8, margin: 0, opacity: searchedPanel.is_locked ? 0.3 : 1 }}
-                                    >
-                                      <Check size={14} /> OK (Pass)
-                                    </button>
-                                    <button 
-                                      type="button" 
-                                      disabled={searchedPanel.is_locked}
-                                      onClick={() => setRepairAction({...repairAction, status: 'Faulty'})}
-                                      className={`btn ${repairAction.status === 'Faulty' ? 'btn-warning' : 'btn-secondary'}`}
-                                      style={{ flex: 1, padding: 8, margin: 0, background: repairAction.status === 'Faulty' ? '#f59e0b' : 'rgba(255,255,255,0.05)', color: '#fff', opacity: searchedPanel.is_locked ? 0.3 : 1 }}
-                                    >
-                                      <AlertCircle size={14} /> Faulty (Rework)
-                                    </button>
-                                    <button 
-                                      type="button" 
-                                      disabled={searchedPanel.is_locked}
-                                      onClick={() => setRepairAction({...repairAction, status: 'Scrap'})}
-                                      className={`btn ${repairAction.status === 'Scrap' ? 'btn-danger' : 'btn-secondary'}`}
-                                      style={{ flex: 1, padding: 8, margin: 0, background: repairAction.status === 'Scrap' ? '#ef4444' : 'rgba(255,255,255,0.05)', color: '#fff', opacity: searchedPanel.is_locked ? 0.3 : 1 }}
-                                    >
-                                      <X size={14} /> Scrap (Non-Rep)
-                                    </button>
-                                  </div>
-                                </div>
-
-                                <div className="form-group">
-                                  <label style={{ color: searchedPanel.is_locked ? '#475569' : 'var(--text-muted)' }}>Remarks / Log Note</label>
-                                  <textarea 
-                                    rows="2" 
-                                    disabled={searchedPanel.is_locked}
-                                    required={repairAction.status === 'Scrap' || repairAction.status === 'Faulty'}
-                                    placeholder={repairAction.status === 'Scrap' ? "Provide reason for scrap classification..." : "Enter technical observations (e.g. solder touch-up, IC replaced)..."}
-                                    value={repairAction.remark}
-                                    onChange={e => setRepairAction({...repairAction, remark: e.target.value})}
-                                    style={{ opacity: searchedPanel.is_locked ? 0.3 : 1 }}
+                                  <label>Quantity Received</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 658"
+                                    value={stepInputs.qty_received || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_received: parseInt(e.target.value)})}
                                   />
                                 </div>
-
-                                {/* Only the assigned engineer or managers/TL can submit work */}
-                                {searchedPanel.is_locked ? (
-                                  <div style={{ color: 'var(--color-warning)', fontSize: '0.75rem', marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <Lock size={12} /> This panel is locked awaiting clearance approvals from Team Lead/Manager.
-                                  </div>
-                                ) : (user.role !== 'Employee' || searchedPanel.panel.assigned_engineer_id === user.id) ? (
-                                  <button type="submit" className="btn">
-                                    Log Step Completion <ArrowRight size={14} />
-                                  </button>
-                                ) : (
-                                  <div style={{ color: 'var(--color-danger)', fontSize: '0.75rem', marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <AlertTriangle size={14} /> You cannot update this panel because it is assigned to another engineer.
-                                  </div>
-                                )}
-                              </form>
-                            </div>
-                          )}
-
-                          {/* Audit History Timeline Log */}
-                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <h3 style={{ fontSize: '0.875rem', fontWeight: 800, marginBottom: 12, color: 'var(--color-primary)' }}>Audit History Timeline Log</h3>
-                            
-                            <div style={{ flex: 1, overflowY: 'auto', maxHeight: '250px', paddingRight: 4 }}>
-                              {searchedPanel.activities.length === 0 ? (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                                  No committed logs for this panel (filtered by database Row-Level Security policies).
+                                <div className="form-group">
+                                  <label>Expected Quantity (Atomberg quantity)</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 678"
+                                    value={stepInputs.expected_qty || ''}
+                                    onChange={e => setStepInputs({...stepInputs, expected_qty: parseInt(e.target.value)})}
+                                  />
                                 </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                                  * Shortage will be auto-computed: <strong>{parseInt(stepInputs.expected_qty || 0) - parseInt(stepInputs.qty_received || 0)} units shortage</strong>.
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 2 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Repairable Quantity</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 600"
+                                    value={stepInputs.repairable_qty || ''}
+                                    onChange={e => setStepInputs({...stepInputs, repairable_qty: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Scrap Quantity</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 58"
+                                    value={stepInputs.scrap_qty || ''}
+                                    onChange={e => setStepInputs({...stepInputs, scrap_qty: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                  Total Inspected (Repairable + Scrap): <strong>{parseInt(stepInputs.repairable_qty || 0) + parseInt(stepInputs.scrap_qty || 0)} PCBs</strong>.
+                                  {lotProductionStats && parseInt(stepInputs.repairable_qty || 0) + parseInt(stepInputs.scrap_qty || 0) !== lotProductionStats.received_qty && (
+                                    <span style={{ color: '#ef4444', display: 'block', marginTop: 4 }}>
+                                      ⚠️ Warning: Total must equal lot received count ({lotProductionStats.received_qty})!
+                                    </span>
+                                  )}
+                                </div>
+                                {renderRemarkField(2)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 3 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Code OK (Passed)</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 590"
+                                    value={stepInputs.code_ok || ''}
+                                    onChange={e => setStepInputs({...stepInputs, code_ok: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Code Not OK (Failed)</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 10"
+                                    value={stepInputs.code_not_ok || ''}
+                                    onChange={e => setStepInputs({...stepInputs, code_not_ok: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                  Total programmed: <strong>{parseInt(stepInputs.code_ok || 0) + parseInt(stepInputs.code_not_ok || 0)} PCBs</strong>.
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 4 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Quantity Passed (OK)</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 570"
+                                    value={stepInputs.qty_passed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_passed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Quantity Failed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 20"
+                                    value={stepInputs.qty_failed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_failed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                {renderRemarkField(4)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 5 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Quantity Debug OK</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 15"
+                                    value={stepInputs.debug_ok || ''}
+                                    onChange={e => setStepInputs({...stepInputs, debug_ok: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Critical Quantity</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 3"
+                                    value={stepInputs.critical_qty || ''}
+                                    onChange={e => setStepInputs({...stepInputs, critical_qty: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Scrap PCBs</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 2"
+                                    value={stepInputs.scrap_qty || ''}
+                                    onChange={e => setStepInputs({...stepInputs, scrap_qty: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                {renderRemarkField(5)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 6 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Entry Count</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 585"
+                                    value={stepInputs.entry_count || ''}
+                                    onChange={e => setStepInputs({...stepInputs, entry_count: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>PCB Status</label>
+                                  <select
+                                    value={stepInputs.pcb_status || 'OK PCB'}
+                                    onChange={e => setStepInputs({...stepInputs, pcb_status: e.target.value})}
+                                  >
+                                    <option value="OK PCB">OK PCB</option>
+                                    <option value="Faulty">Faulty</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 7 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Quantity Cleaned</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 580"
+                                    value={stepInputs.qty_cleaned || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_cleaned: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>QC Reject</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 5"
+                                    value={stepInputs.qc_reject || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qc_reject: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                {renderRemarkField(7)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 8 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Quantity Passed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 580"
+                                    value={stepInputs.qty_passed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_passed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Quantity Failed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 0"
+                                    value={stepInputs.qty_failed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_failed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                {renderRemarkField(8)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 9 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Quantity Marked & Coated</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    placeholder="e.g. 580"
+                                    value={stepInputs.qty_coated || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_coated: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                {renderRemarkField(9)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 10 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Quantity Passed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    value={stepInputs.qty_passed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_passed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Quantity Failed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    value={stepInputs.qty_failed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, qty_failed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                {renderRemarkField(10)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 11 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Bubble Packed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    value={stepInputs.bubble_packed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, bubble_packed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Box Packed</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    value={stepInputs.box_packed || ''}
+                                    onChange={e => setStepInputs({...stepInputs, box_packed: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>Outbound Lot Code (Out_Lot)</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. DISP-72"
+                                    value={stepInputs.out_lot || ''}
+                                    onChange={e => setStepInputs({...stepInputs, out_lot: e.target.value})}
+                                  />
+                                </div>
+                                {renderRemarkField(11)}
+                              </div>
+                            )}
+
+                            {selectedProductionStep === 12 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                <div className="form-group">
+                                  <label>Entry Count</label>
+                                  <input
+                                    type="number"
+                                    required
+                                    value={stepInputs.entry_count || ''}
+                                    onChange={e => setStepInputs({...stepInputs, entry_count: parseInt(e.target.value)})}
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label>PCB Status</label>
+                                  <select
+                                    value={stepInputs.pcb_status || 'OK PCB'}
+                                    onChange={e => setStepInputs({...stepInputs, pcb_status: e.target.value})}
+                                  >
+                                    <option value="OK PCB">OK PCB</option>
+                                    <option value="Faulty">Faulty</option>
+                                  </select>
+                                </div>
+                              </div>
+                            )}
+
+                            <button type="submit" className="btn" style={{ marginTop: 16 }}>
+                              Submit Step Production Log <ArrowRight size={14} />
+                            </button>
+                          </form>
+
+                          {/* Recent Log Submissions below the form */}
+                          <div style={{ marginTop: 24, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12 }}>My Pending & Recent Step Log Submissions</h3>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 150, overflowY: 'auto' }}>
+                              {pendingProductionLogs.filter(p => p.operator_id === user.id).length === 0 ? (
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending clearance approvals for this step.</div>
                               ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', paddingLeft: 12, borderLeft: '2px solid rgba(255,255,255,0.05)' }}>
-                                  {searchedPanel.activities.map((act, index) => (
-                                    <div key={act.id} style={{ position: 'relative' }}>
-                                      <span style={{ 
-                                        position: 'absolute', 
-                                        left: -20, 
-                                        top: 4, 
-                                        width: 12, 
-                                        height: 12, 
-                                        borderRadius: '50%', 
-                                        background: act.status === 'Scrap' ? '#ef4444' : act.status === 'Faulty' ? '#f59e0b' : '#ffd400',
-                                        boxShadow: act.status === 'OK' ? '0 0 8px #ffd400' : 'none'
-                                      }}></span>
-                                      
-                                      <div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <h4 style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>
-                                            Step {act.step_no}: {act.step_name}
-                                          </h4>
-                                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                                            {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                          </span>
-                                        </div>
-                                        
-                                        <p style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: 2, marginBottom: 2 }}>{act.remark}</p>
-                                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block' }}>
-                                          Worker: {act.engineer_name || 'System / Auto'}
-                                        </span>
-                                      </div>
+                                pendingProductionLogs.filter(p => p.operator_id === user.id).map(p => (
+                                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 6, fontSize: '0.72rem' }}>
+                                    <div>
+                                      <strong>{p.pcb_type}</strong> • Qty: {Object.values(p.step_data)[0]} units
+                                      {p.rejection_reason && <div style={{ color: '#ef4444', fontSize: '0.65rem' }}>❌ Rejected Reason: {p.rejection_reason}</div>}
                                     </div>
-                                  ))}
-                                </div>
+                                    <span className={`badge ${p.approval_status === 'Rejected' ? 'badge-danger' : 'badge-warning'}`}>{p.approval_status}</span>
+                                  </div>
+                                ))
                               )}
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, minHeight: 320, padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                          <Search size={40} color="var(--color-primary)" style={{ opacity: 0.5, marginBottom: 16 }} />
-                          <h3 style={{ color: '#fff', fontSize: '1rem', fontWeight: 800, marginBottom: 8 }}>Operations Workspace Idle</h3>
-                          <p style={{ fontSize: '0.8rem', maxWidth: 300, lineHeight: 1.5, margin: 0 }}>
-                            Scan or enter a panel barcode on the left to activate the terminal workspace.
-                          </p>
+                        /* Render for Team Lead & Managers/Superadmins - Pending Approvals list for Selected Step */
+                        <div>
+                          <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>Vetting & Approvals Queue - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}</span>
+                            <button 
+                              onClick={() => fetchPendingProductionLogs(selectedProductionStep)} 
+                              className="btn btn-secondary" 
+                              style={{ width: 'auto', margin: 0, padding: '4px 8px', fontSize: '0.65rem' }}
+                            >
+                              Refresh
+                            </button>
+                          </h2>
+
+                          {/* List pending approvals for selectedStep */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            {pendingProductionLogs.length === 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--text-muted)', textAlign: 'center' }}>
+                                <CheckCircle size={36} color="#10b981" style={{ opacity: 0.6, marginBottom: 12 }} />
+                                <h3 style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 800, margin: 0 }}>Step Queue Clear</h3>
+                                <p style={{ fontSize: '0.75rem', margin: 0, marginTop: 4 }}>No pending step-wise logs require your clearance sign-off at this step.</p>
+                              </div>
+                            ) : (
+                              pendingProductionLogs.map(log => {
+                                const dataEntries = Object.entries(log.step_data);
+                                const isTLPending = log.approval_status === 'Pending Team Lead';
+                                const isTLRole = ['Team Lead', 'Manager', 'Superadmin'].includes(user.role);
+                                const isMgrRole = ['Manager', 'Superadmin'].includes(user.role);
+                                const isManagerPending = log.approval_status === 'Pending Manager';
+
+                                return (
+                                  <div 
+                                    key={log.id} 
+                                    className="glass-panel" 
+                                    style={{ 
+                                      padding: 14, 
+                                      border: '1px solid rgba(255,255,255,0.04)', 
+                                      background: 'rgba(255,255,255,0.015)',
+                                      borderColor: isTLPending ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: 8, marginBottom: 10 }}>
+                                      <div>
+                                        <strong style={{ fontSize: '0.8rem', color: '#fff' }}>Lot {log.lot_no} ({log.batch_no} • {log.pixel_pitch})</strong>
+                                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                          Operator: <strong>{log.operator_name || 'System'}</strong> • Time: {new Date(log.timestamp).toLocaleString()}
+                                        </div>
+                                      </div>
+                                      <span className={`badge ${isTLPending ? 'badge-warning' : isManagerPending ? 'badge-info' : 'badge-success'}`}>
+                                        {log.approval_status}
+                                      </span>
+                                    </div>
+
+                                    {/* Display exact tracking columns and values in side-by-side grids */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>LOG DATA FIELDS:</div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                        <div style={{ padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                                          <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block' }}>PCB Type</span>
+                                          <strong style={{ fontSize: '0.72rem', color: '#fff' }}>{log.pcb_type}</strong>
+                                        </div>
+                                        {dataEntries.map(([k, v]) => (
+                                          <div key={k} style={{ padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                                            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'capitalize' }}>{k.replace('_', ' ')}</span>
+                                            <strong style={{ fontSize: '0.72rem', color: '#ffd400' }}>{String(v)}</strong>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+
+                                    {/* Vetting Sign-off Action buttons */}
+                                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                      {rejectionLogInputId === log.id ? (
+                                        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
+                                          <input 
+                                            type="text" 
+                                            required
+                                            placeholder="Enter reason for rejection..."
+                                            value={rejectionLogText}
+                                            onChange={e => setRejectionLogText(e.target.value)}
+                                            style={{ flex: 1, padding: '6px 12px', fontSize: '0.72rem' }}
+                                          />
+                                          <button 
+                                            onClick={() => rejectProductionLog(log.id, rejectionLogText)} 
+                                            className="btn btn-danger" 
+                                            style={{ width: 'auto', margin: 0, padding: '6px 12px', fontSize: '0.72rem' }}
+                                          >
+                                            Confirm Reject
+                                          </button>
+                                          <button 
+                                            onClick={() => setRejectionLogInputId(null)} 
+                                            className="btn btn-secondary" 
+                                            style={{ width: 'auto', margin: 0, padding: '6px 12px', fontSize: '0.72rem' }}
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          {isTLPending && isTLRole && (
+                                            <button 
+                                              onClick={() => tlApproveProductionLog(log.id)} 
+                                              className="btn btn-success" 
+                                              style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#ffd400', color: '#000', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                                            >
+                                              <Check size={12} /> Team Lead Sign-off
+                                            </button>
+                                          )}
+                                          
+                                          {isManagerPending && isMgrRole && (
+                                            <button 
+                                              onClick={() => managerApproveProductionLog(log.id)} 
+                                              className="btn btn-success" 
+                                              style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#10b981', color: '#fff', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                                            >
+                                              <CheckCheck size={12} /> Manager Final Approval
+                                            </button>
+                                          )}
+
+                                          {((isTLPending && isTLRole) || (isManagerPending && isMgrRole)) && (
+                                            <button 
+                                              onClick={() => { setRejectionLogInputId(log.id); setRejectionLogText(''); }} 
+                                              className="btn btn-danger" 
+                                              style={{ width: 'auto', margin: 0, padding: '6px 14px', fontSize: '0.72rem', cursor: 'pointer' }}
+                                            >
+                                              <X size={12} /> Reject
+                                            </button>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -2328,8 +2943,8 @@ function App() {
                       <div style={{ fontWeight: 800 }}>{p.barcode}</div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>Sr No {p.sr_no} • {p.side} Side • Operator: {p.engineer_name || 'Unassigned'}</div>
                     </div>
-                    <span className={`badge ${p.status === 'Scrap' ? 'badge-danger' : p.current_step === 14 ? 'badge-success' : 'badge-warning'}`}>
-                      {p.status === 'Scrap' ? 'Scrap' : p.current_step === 14 ? 'Dispatched' : `Step ${p.current_step}`}
+                    <span className={`badge ${p.status === 'Scrap' ? 'badge-danger' : p.current_step === 12 ? 'badge-success' : 'badge-warning'}`}>
+                      {p.status === 'Scrap' ? 'Scrap' : p.current_step === 12 ? 'Dispatched' : `Step ${p.current_step}`}
                     </span>
                   </div>
                 ))}

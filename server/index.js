@@ -22,22 +22,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// 14 fixed steps matching the official build tracker PDF
+// 12 fixed steps matching the tracking spreadsheet
 const STEP_NAMES = [
-  "Panel Assign",
-  "Repair Aging",
-  "Panel Opening",
-  "Silicon Removing",
-  "IC Removing",
-  "IC Cleaning",
-  "IC Replacing",
-  "Debugging",
-  "1st Aging",
-  "Applying Silicon",
-  "Half Fitting",
-  "Mesh Fitting",
-  "QC",
-  "Dispatch"
+  "Inward",
+  "Segregation",
+  "Programming",
+  "1st Testing",
+  "Debug",
+  "Entry",
+  "Cleaning",
+  "QC After Cleaning",
+  "Marking & Coating",
+  "Final Testing",
+  "Packing",
+  "Final Entry"
 ];
 
 // ==========================================
@@ -213,7 +211,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
 
       // Calculate dispatched for this lot
       const dispRes = await query(
-        "SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND current_step = 14 AND status != 'Scrap'",
+        "SELECT COUNT(*) FROM panels WHERE lot_id = $1 AND current_step = 12 AND status != 'Scrap'",
         [lot.id]
       );
       const dispCount = parseInt(dispRes.rows[0].count);
@@ -232,7 +230,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
     const stepBreakdown = [];
     let bottleneckAlerts = [];
 
-    for (let i = 1; i <= 14; i++) {
+    for (let i = 1; i <= 12; i++) {
       let countQuery = "SELECT COUNT(*) FROM panels WHERE current_step = $1 AND status != 'Scrap'";
       let countParams = [i];
       if (lot_no) {
@@ -250,7 +248,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
       });
 
       // Bottleneck alert if > 10 panels are clogging a step
-      if (i !== 14 && countVal > 10) {
+      if (i !== 12 && countVal > 10) {
         bottleneckAlerts.push({
           type: "bottleneck",
           step_no: i,
@@ -261,7 +259,7 @@ app.get('/api/dashboard', authenticateJWT, authorize(['Superadmin', 'Manager', '
       }
     }
 
-    totalPending = stepBreakdown.reduce((sum, item) => sum + (item.step_no !== 14 ? item.count : 0), 0);
+    totalPending = stepBreakdown.reduce((sum, item) => sum + (item.step_no !== 12 ? item.count : 0), 0);
 
     // Client discrepancy alerts
     for (const lot of lotsRes.rows) {
@@ -696,10 +694,10 @@ app.get('/api/leaderboard', authenticateJWT, async (req, res) => {
     const scores = [];
 
     for (const eng of engRes.rows) {
-      // 1. PCBs Repaired (Step 14 complete)
+      // 1. PCBs Repaired (Step 12 complete)
       const repRes = await query(`
         SELECT COUNT(DISTINCT panel_id) FROM panel_logs 
-        WHERE engineer_id = $1 AND step_id = (SELECT id FROM repair_steps WHERE step_no = 14)
+        WHERE engineer_id = $1 AND step_id = (SELECT id FROM repair_steps WHERE step_no = 12)
       `, [eng.id]);
       const pcbsRepaired = parseInt(repRes.rows[0].count);
       const pcbRepairedPoints = Math.min((pcbsRepaired / 15) * 100, 100);
@@ -917,7 +915,7 @@ app.post('/api/repair/next', authenticateJWT, async (req, res) => {
     if (panel.status === 'Scrap') {
       return res.status(400).json({ error: "Cannot process a scrapped panel." });
     }
-    if (panel.current_step === 14) {
+    if (panel.current_step === 12) {
       return res.status(400).json({ error: "Panel is already fully dispatched." });
     }
 
@@ -1239,6 +1237,375 @@ app.post('/api/stock/toggle/:id', authenticateJWT, authorize(['Manager', 'Supera
     res.status(500).json({ error: "Failed to toggle lot status." });
   } finally {
     client.release();
+  }
+});
+
+// ============================================================================
+// Lot-Level 12-Step Production Logging with strict Checksums & 2-Tier Approvals
+// ============================================================================
+
+// A. Helper to get step-wise aggregates (committed + pending logs)
+const getStepSum = async (lotId, stepNo, fields) => {
+  const selectCommitted = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
+  const comRes = await query(`SELECT ${selectCommitted} FROM production_logs WHERE lot_id = $1 AND step_no = $2`, [lotId, stepNo]);
+  
+  const selectPending = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
+  const penRes = await query(`SELECT ${selectPending} FROM pending_production_logs WHERE lot_id = $1 AND step_no = $2 AND approval_status != 'Rejected'`, [lotId, stepNo]);
+  
+  const result = {};
+  fields.forEach(f => {
+    result[f] = parseInt(comRes.rows[0][f] || 0) + parseInt(penRes.rows[0][f] || 0);
+  });
+  return result;
+};
+
+// 1. GET /api/production/logs - Fetch all approved production logs
+app.get('/api/production/logs', authenticateJWT, async (req, res) => {
+  const { lot_id, step_no } = req.query;
+  let q = `
+    SELECT pl.*, l.lot_no, l.batch_no, l.pixel_pitch, u.name as operator_name 
+    FROM production_logs pl
+    JOIN lots l ON pl.lot_id = l.id
+    LEFT JOIN users u ON pl.operator_id = u.id
+    WHERE 1=1
+  `;
+  const params = [];
+  if (lot_id) {
+    params.push(parseInt(lot_id));
+    q += ` AND pl.lot_id = $${params.length}`;
+  }
+  if (step_no) {
+    params.push(parseInt(step_no));
+    q += ` AND pl.step_no = $${params.length}`;
+  }
+  q += ` ORDER BY pl.timestamp DESC`;
+
+  try {
+    const resLogs = await query(q, params);
+    res.json(resLogs.rows);
+  } catch (err) {
+    console.error('Fetch logs error:', err);
+    res.status(500).json({ error: "Failed to fetch production logs." });
+  }
+});
+
+// 2. GET /api/production/pending - Fetch pending logs for clearances
+app.get('/api/production/pending', authenticateJWT, async (req, res) => {
+  const { step_no } = req.query;
+  let q = `
+    SELECT pl.*, l.lot_no, l.batch_no, l.pixel_pitch, u.name as operator_name, tl.name as team_lead_name, mgr.name as manager_name
+    FROM pending_production_logs pl
+    JOIN lots l ON pl.lot_id = l.id
+    LEFT JOIN users u ON pl.operator_id = u.id
+    LEFT JOIN users tl ON pl.team_lead_id = tl.id
+    LEFT JOIN users mgr ON pl.manager_id = mgr.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  // Fetch all pending approvals at both Team Lead and Manager stages so users can see the full pending pipeline
+  q += ` AND pl.approval_status IN ('Pending Team Lead', 'Pending Manager')`;
+
+  if (step_no) {
+    params.push(parseInt(step_no));
+    q += ` AND pl.step_no = $${params.length}`;
+  }
+
+  q += ` ORDER BY pl.timestamp DESC`;
+
+  try {
+    const resLogs = await query(q, params);
+    res.json(resLogs.rows);
+  } catch (err) {
+    console.error('Fetch pending logs error:', err);
+    res.status(500).json({ error: "Failed to fetch pending production logs." });
+  }
+});
+
+// 3. POST /api/production/log - Create a pending step log entry (Employee only!)
+app.post('/api/production/log', authenticateJWT, authorize(['Employee']), async (req, res) => {
+  const { lot_id, step_no, pcb_type, step_data } = req.body;
+
+  if (!lot_id || !step_no || !pcb_type || !step_data) {
+    return res.status(400).json({ error: "Missing required entry fields." });
+  }
+
+  try {
+    const lotId = parseInt(lot_id);
+    const stepNo = parseInt(step_no);
+    const lotRes = await query('SELECT * FROM lots WHERE id = $1', [lotId]);
+    if (lotRes.rowCount === 0) {
+      return res.status(404).json({ error: "Selected lot does not exist." });
+    }
+    const lot = lotRes.rows[0];
+    const received_qty = lot.received_qty;
+
+    // Strict Checksum & Conservation of Units Verification
+    if (stepNo === 2) {
+      const { repairable_qty, scrap_qty } = step_data;
+      const existing = await getStepSum(lotId, 2, ['repairable_qty', 'scrap_qty']);
+      const total = existing.repairable_qty + existing.scrap_qty + parseInt(repairable_qty || 0) + parseInt(scrap_qty || 0);
+      if (total > received_qty) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total segregated PCBs (${total}) would exceed the actual received quantity (${received_qty}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 3) {
+      const { code_ok, code_not_ok } = step_data;
+      const step2 = await getStepSum(lotId, 2, ['repairable_qty']);
+      const existing = await getStepSum(lotId, 3, ['code_ok', 'code_not_ok']);
+      const total = existing.code_ok + existing.code_not_ok + parseInt(code_ok || 0) + parseInt(code_not_ok || 0);
+      if (total > step2.repairable_qty) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total programmed PCBs (${total}) would exceed the segregated repairable quantity (${step2.repairable_qty}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 4) {
+      const { qty_passed, qty_failed } = step_data;
+      const step3 = await getStepSum(lotId, 3, ['code_ok']);
+      const existing = await getStepSum(lotId, 4, ['qty_passed', 'qty_failed']);
+      const total = existing.qty_passed + existing.qty_failed + parseInt(qty_passed || 0) + parseInt(qty_failed || 0);
+      if (total > step3.code_ok) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total tested PCBs (${total}) would exceed the programmed OK quantity (${step3.code_ok}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 5) {
+      const { debug_ok, critical_qty, scrap_qty } = step_data;
+      const step4 = await getStepSum(lotId, 4, ['qty_failed']);
+      const existing = await getStepSum(lotId, 5, ['debug_ok', 'critical_qty', 'scrap_qty']);
+      const total = existing.debug_ok + existing.critical_qty + existing.scrap_qty + parseInt(debug_ok || 0) + parseInt(critical_qty || 0) + parseInt(scrap_qty || 0);
+      if (total > step4.qty_failed) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total debugged PCBs (${total}) would exceed the failed quantity from 1st Testing (${step4.qty_failed}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 6) {
+      const { entry_count } = step_data;
+      const step4 = await getStepSum(lotId, 4, ['qty_passed']);
+      const step5 = await getStepSum(lotId, 5, ['debug_ok']);
+      const limit = step4.qty_passed + step5.debug_ok;
+      const existing = await getStepSum(lotId, 6, ['entry_count']);
+      const total = existing.entry_count + parseInt(entry_count || 0);
+      if (total > limit) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total entered PCBs (${total}) would exceed the passed/debugged count (${limit}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 7) {
+      const { qty_cleaned, qc_reject } = step_data;
+      const step6 = await getStepSum(lotId, 6, ['entry_count']);
+      const existing = await getStepSum(lotId, 7, ['qty_cleaned', 'qc_reject']);
+      const total = existing.qty_cleaned + existing.qc_reject + parseInt(qty_cleaned || 0) + parseInt(qc_reject || 0);
+      if (total > step6.entry_count) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total cleaned PCBs (${total}) would exceed the entry count (${step6.entry_count}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 8) {
+      const { qty_passed, qty_failed } = step_data;
+      const step7 = await getStepSum(lotId, 7, ['qty_cleaned']);
+      const existing = await getStepSum(lotId, 8, ['qty_passed', 'qty_failed']);
+      const total = existing.qty_passed + existing.qty_failed + parseInt(qty_passed || 0) + parseInt(qty_failed || 0);
+      if (total > step7.qty_cleaned) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total QC-inspected PCBs (${total}) would exceed the cleaned count (${step7.qty_cleaned}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 9) {
+      const { qty_coated } = step_data;
+      const step8 = await getStepSum(lotId, 8, ['qty_passed']);
+      const existing = await getStepSum(lotId, 9, ['qty_coated']);
+      const total = existing.qty_coated + parseInt(qty_coated || 0);
+      if (total > step8.qty_passed) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total coated PCBs (${total}) would exceed the QC-passed count (${step8.qty_passed}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 10) {
+      const { qty_passed, qty_failed } = step_data;
+      const step9 = await getStepSum(lotId, 9, ['qty_coated']);
+      const existing = await getStepSum(lotId, 10, ['qty_passed', 'qty_failed']);
+      const total = existing.qty_passed + existing.qty_failed + parseInt(qty_passed || 0) + parseInt(qty_failed || 0);
+      if (total > step9.qty_coated) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total final-tested PCBs (${total}) would exceed the coated count (${step9.qty_coated}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 11) {
+      const { bubble_packed, box_packed } = step_data;
+      const step10 = await getStepSum(lotId, 10, ['qty_passed']);
+      const existing = await getStepSum(lotId, 11, ['bubble_packed', 'box_packed']);
+      const total = existing.bubble_packed + existing.box_packed + parseInt(bubble_packed || 0) + parseInt(box_packed || 0);
+      if (total > step10.qty_passed) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total packed PCBs (${total}) would exceed the final test-passed count (${step10.qty_passed}) of Lot ${lot.lot_no}.` });
+      }
+    } else if (stepNo === 12) {
+      const { entry_count } = step_data;
+      const step11 = await getStepSum(lotId, 11, ['bubble_packed', 'box_packed']);
+      const limit = step11.bubble_packed + step11.box_packed;
+      const existing = await getStepSum(lotId, 12, ['entry_count']);
+      const total = existing.entry_count + parseInt(entry_count || 0);
+      if (total > limit) {
+        return res.status(400).json({ error: `🚫 Checksum Error: Total final entries (${total}) would exceed the packed count (${limit}) of Lot ${lot.lot_no}.` });
+      }
+    }
+
+    // Shortage calculations for Inward (Step 1)
+    if (stepNo === 1) {
+      const qty_rec = parseInt(step_data.qty_received || 0);
+      const expected = parseInt(step_data.expected_qty || 0);
+      step_data.shortage = expected - qty_rec;
+    }
+
+    // Insert pending log log (Awaiting TL and Manager approvals)
+    const insRes = await query(`
+      INSERT INTO pending_production_logs (lot_id, step_no, pcb_type, operator_id, step_data, approval_status)
+      VALUES ($1, $2, $3, $4, $5, 'Pending Team Lead')
+      RETURNING *
+    `, [lotId, stepNo, pcb_type, req.user.id, JSON.stringify(step_data)]);
+
+    res.status(201).json({
+      success: true,
+      pending: true,
+      log: insRes.rows[0],
+      message: "Step production log submitted successfully! Awaiting Team Lead & Manager clearances."
+    });
+
+  } catch (err) {
+    console.error('Log creation error:', err);
+    res.status(500).json({ error: "Failed to record pending step log entry." });
+  }
+});
+
+// 4. POST /api/production/tl-approve - Team Lead advanced log to Manager
+app.post('/api/production/tl-approve', authenticateJWT, authorize(['Team Lead', 'Superadmin', 'Manager']), async (req, res) => {
+  const { pending_log_id } = req.body;
+  if (!pending_log_id) {
+    return res.status(400).json({ error: "Missing pending log ID." });
+  }
+
+  try {
+    const updateRes = await query(`
+      UPDATE pending_production_logs 
+      SET approval_status = 'Pending Manager', team_lead_id = $1, team_lead_approved_at = NOW()
+      WHERE id = $2 AND approval_status = 'Pending Team Lead'
+      RETURNING *
+    `, [req.user.id, pending_log_id]);
+
+    if (updateRes.rowCount === 0) {
+      return res.status(404).json({ error: "Pending log not found or already verified." });
+    }
+
+    res.json({ success: true, log: updateRes.rows[0] });
+  } catch (err) {
+    console.error('TL approve error:', err);
+    res.status(500).json({ error: "Failed to approve log at Team Lead stage." });
+  }
+});
+
+// 5. POST /api/production/manager-approve - Manager commits log to final DB
+app.post('/api/production/manager-approve', authenticateJWT, authorize(['Manager', 'Superadmin']), async (req, res) => {
+  const { pending_log_id } = req.body;
+  if (!pending_log_id) {
+    return res.status(400).json({ error: "Missing pending log ID." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const logRes = await client.query('SELECT * FROM pending_production_logs WHERE id = $1 AND approval_status = ' + "'Pending Manager'", [pending_log_id]);
+    if (logRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: "Pending manager clearance not found." });
+    }
+
+    const pLog = logRes.rows[0];
+
+    // Insert into final production_logs
+    await client.query(`
+      INSERT INTO production_logs (lot_id, step_no, pcb_type, operator_id, step_data, timestamp)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `, [pLog.lot_id, pLog.step_no, pLog.pcb_type, pLog.operator_id, pLog.step_data, pLog.timestamp]);
+
+    // Update pending log to Approved status
+    await client.query(`
+      UPDATE pending_production_logs 
+      SET approval_status = 'Approved', manager_id = $1, manager_approved_at = NOW()
+      WHERE id = $2
+    `, [req.user.id, pending_log_id]);
+
+    // Adjust lot stats if Step 12 (Final Entry) is committed
+    if (pLog.step_no === 12) {
+      const finalCount = parseInt(pLog.step_data.entry_count || 0);
+      await client.query('UPDATE lots SET dispatched_qty = COALESCE(dispatched_qty, 0) + $1 WHERE id = $2', [finalCount, pLog.lot_id]);
+      
+      // Auto-toggle lot status to Complete if limit reached
+      const checkLot = await client.query('SELECT * FROM lots WHERE id = $1', [pLog.lot_id]);
+      const activeLot = checkLot.rows[0];
+      if (activeLot.dispatched_qty >= activeLot.received_qty) {
+        await client.query("UPDATE lots SET status = 'Complete' WHERE id = $1", [pLog.lot_id]);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: "Production log committed and approved successfully!" });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Manager approve error:', err);
+    res.status(500).json({ error: "Failed to commit approved production log." });
+  } finally {
+    client.release();
+  }
+});
+
+// 6. POST /api/production/reject - Reject pending log with reason
+app.post('/api/production/reject', authenticateJWT, authorize(['Team Lead', 'Manager', 'Superadmin']), async (req, res) => {
+  const { pending_log_id, rejection_reason } = req.body;
+  if (!pending_log_id || !rejection_reason) {
+    return res.status(400).json({ error: "Pending log ID and rejection reason are required." });
+  }
+
+  try {
+    const updateRes = await query(`
+      UPDATE pending_production_logs 
+      SET approval_status = 'Rejected', rejection_reason = $1
+      WHERE id = $2 AND approval_status IN ('Pending Team Lead', 'Pending Manager')
+      RETURNING *
+    `, [rejection_reason, pending_log_id]);
+
+    if (updateRes.rowCount === 0) {
+      return res.status(404).json({ error: "Pending production log not found." });
+    }
+
+    res.json({ success: true, log: updateRes.rows[0] });
+  } catch (err) {
+    console.error('Reject log error:', err);
+    res.status(500).json({ error: "Failed to reject pending production log." });
+  }
+});
+
+// 7. GET /api/production/stats/:lot_id - Fetch step-wise aggregates and checksums for a lot
+app.get('/api/production/stats/:lot_id', authenticateJWT, async (req, res) => {
+  try {
+    const lotId = parseInt(req.params.lot_id);
+    const lotRes = await query('SELECT * FROM lots WHERE id = $1', [lotId]);
+    if (lotRes.rowCount === 0) {
+      return res.status(404).json({ error: "Lot not found." });
+    }
+    const lot = lotRes.rows[0];
+
+    const stats = {
+      lot_no: lot.lot_no,
+      batch_no: lot.batch_no,
+      pixel_pitch: lot.pixel_pitch,
+      qty_sent: lot.qty_sent,
+      received_qty: lot.received_qty,
+      dispatched_qty: lot.dispatched_qty,
+      steps: {}
+    };
+
+    // Pull sums sequentially for the 12 steps
+    stats.steps[1] = { inward: lot.received_qty, expected: lot.qty_sent, shortage: lot.qty_sent - lot.received_qty };
+    stats.steps[2] = await getStepSum(lotId, 2, ['repairable_qty', 'scrap_qty']);
+    stats.steps[3] = await getStepSum(lotId, 3, ['code_ok', 'code_not_ok']);
+    stats.steps[4] = await getStepSum(lotId, 4, ['qty_passed', 'qty_failed']);
+    stats.steps[5] = await getStepSum(lotId, 5, ['debug_ok', 'critical_qty', 'scrap_qty']);
+    stats.steps[6] = await getStepSum(lotId, 6, ['entry_count']);
+    stats.steps[7] = await getStepSum(lotId, 7, ['qty_cleaned', 'qc_reject']);
+    stats.steps[8] = await getStepSum(lotId, 8, ['qty_passed', 'qty_failed']);
+    stats.steps[9] = await getStepSum(lotId, 9, ['qty_coated']);
+    stats.steps[10] = await getStepSum(lotId, 10, ['qty_passed', 'qty_failed']);
+    stats.steps[11] = await getStepSum(lotId, 11, ['bubble_packed', 'box_packed']);
+    stats.steps[12] = await getStepSum(lotId, 12, ['entry_count']);
+
+    res.json(stats);
+  } catch (err) {
+    console.error('Stats aggregation error:', err);
+    res.status(500).json({ error: "Failed to compile lot production stats." });
   }
 });
 
