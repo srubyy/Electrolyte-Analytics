@@ -1833,7 +1833,7 @@ function App() {
                                 </div>
                               )}
 
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, fontSize: '0.75rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
+                              <div className="lot-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, fontSize: '0.75rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
                                 <div>
                                   <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Inward</div>
                                   <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>{lot.received_qty}</div>
@@ -1857,7 +1857,7 @@ function App() {
                               </div>
 
                               {/* Quick Action Transaction Toolbar for Active Lots */}
-                              <div style={{ display: 'flex', gap: 6 }}>
+                              <div className="lot-action-btns" style={{ display: 'flex', gap: 6 }}>
                                 <button 
                                   disabled={isComplete && user.role !== 'Superadmin'}
                                   onClick={() => {
@@ -1963,7 +1963,7 @@ function App() {
                     </div>
                     
                     {/* Active Lot selector in the header for quick lot selection */}
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div className="repair-lot-selector" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                       <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>Active Lot:</label>
                       <select
                         value={productionLotId}
@@ -1983,7 +1983,7 @@ function App() {
                     <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Wrench size={14} /> Interactive 12-Step Pipeline Flow (Click to Select Step)
                     </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+                    <div className="pipeline-step-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
                       {STEP_NAMES.map((name, index) => {
                         const stepNo = index + 1;
                         const isActive = selectedProductionStep === stepNo;
@@ -2541,7 +2541,7 @@ function App() {
                       ) : (
                         /* Render for Team Lead & Managers/Superadmins - Pending Approvals list for Selected Step */
                         <div>
-                          <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h2 className="vetting-queue-header" style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>Vetting & Approvals Queue - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}</span>
                             <button 
                               onClick={() => fetchPendingProductionLogs(selectedProductionStep)} 
@@ -2594,7 +2594,7 @@ function App() {
                                     {/* Display exact tracking columns and values in side-by-side grids */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>LOG DATA FIELDS:</div>
-                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                                      <div className="approval-data-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                                         <div style={{ padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
                                           <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block' }}>PCB Type</span>
                                           <strong style={{ fontSize: '0.72rem', color: '#fff' }}>{log.pcb_type}</strong>

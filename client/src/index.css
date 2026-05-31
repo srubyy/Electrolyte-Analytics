@@ -647,10 +647,186 @@ select:focus, input:focus, textarea:focus {
   }
 }
 
-/* Hide desktop tabs and adjust container paddings on mobile */
+/* =============================================
+   MOBILE RESPONSIVE OVERRIDES  (max-width: 767px)
+   ============================================= */
 @media (max-width: 767px) {
+
+  /* ---- Main content padding ---- */
   .app-main-content {
-    padding: 20px 16px 88px 16px;
+    padding: 16px 12px 80px 12px;
+  }
+
+  /* ---- Top header: stack brand + profile on small screens ---- */
+  .app-top-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .app-brand-title {
+    font-size: 0.95rem;
+  }
+
+  /* ---- Page section headers: stack title + actions vertically ---- */
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .app-title {
+    font-size: 1.15rem;
+  }
+
+  /* ---- Glass panels: tighter padding on mobile ---- */
+  .glass-panel {
+    border-radius: 10px;
+  }
+
+  /* ---- Metrics grid: always 2-col on mobile ---- */
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .metric-val {
+    font-size: 1.35rem;
+  }
+
+  /* ---- Widescreen grid: single column on mobile ---- */
+  .widescreen-grid {
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  /* ---- Pipeline step items: tighter ---- */
+  .pipeline-step {
+    padding: 10px 12px;
+  }
+
+  .step-name {
+    font-size: 0.78rem;
+  }
+
+  /* ---- 12-Step Pipeline Flow: horizontal scroll strip ---- */
+  .pipeline-step-grid {
+    display: flex !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px !important;
+    padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+  }
+
+  .pipeline-step-grid > div {
+    min-width: 90px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+
+  /* ---- Bottom nav: fixed to viewport bottom ---- */
+  .bottom-nav {
+    position: fixed;
+  }
+
+  /* ---- Nav items: less horizontal padding ---- */
+  .nav-item {
+    padding: 6px 8px;
+    font-size: 0.6rem;
+  }
+
+  .nav-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* ---- Buttons: slightly smaller on mobile ---- */
+  .btn {
+    padding: 12px 16px;
+    font-size: 0.8rem;
+  }
+
+  /* ---- Forms: tighter inputs ---- */
+  select, input, textarea {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  /* ---- Leaderboard items ---- */
+  .leader-item {
+    padding: 10px 12px;
+  }
+
+  .leader-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .leader-name {
+    font-size: 0.78rem;
+  }
+
+  .score-val {
+    font-size: 0.95rem;
+  }
+
+  /* ---- Badge sizing ---- */
+  .badge {
+    font-size: 0.65rem;
+    padding: 4px 8px;
+  }
+
+  /* ---- Hide elements that are desktop-only ---- */
+  .desktop-only-flex {
+    display: none !important;
+  }
+
+  /* ---- Lot stats 5-col grid: 3+2 on mobile ---- */
+  .lot-stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+    font-size: 0.68rem !important;
+  }
+
+  /* ---- Approval log data fields: 2-col on mobile ---- */
+  .approval-data-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ---- Stock lot action buttons: wrap on mobile ---- */
+  .lot-action-btns {
+    flex-wrap: wrap;
+  }
+
+  /* ---- Prevent any horizontal overflow ---- */
+  .app-layout {
+    overflow-x: hidden;
+  }
+
+  /* ---- Long text handling ---- */
+  h1, h2, h3, h4, span, div, p {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* ---- Repair terminal Active Lot selector: full width ---- */
+  .repair-lot-selector {
+    width: 100% !important;
+  }
+
+  .repair-lot-selector select {
+    min-width: unset !important;
+    width: 100% !important;
+  }
+
+  /* ---- Vetting approval queue title: wrap text ---- */
+  .vetting-queue-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
   }
 }
 
@@ -659,4 +835,9 @@ select:focus, input:focus, textarea:focus {
   .bottom-nav {
     display: none;
   }
+}
+
+/* Bottom nav should be fixed on all mobile sizes */
+.bottom-nav {
+  position: fixed;
 }
