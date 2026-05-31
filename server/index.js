@@ -1619,6 +1619,83 @@ app.get('/api/production/stats/:lot_id', authenticateJWT, async (req, res) => {
   }
 });
 
+// ============================================================================
+// Superadmin User Management & Administration Endpoints
+// ============================================================================
+
+// 8. GET /api/admin/users - Fetch all system users (Superadmin only)
+app.get('/api/admin/users', authenticateJWT, authorize(['Superadmin']), async (req, res) => {
+  try {
+    const userRes = await query('SELECT id, name, email, role, attendance_rate, avatar, is_active, created_at FROM users ORDER BY created_at DESC');
+    res.json(userRes.rows);
+  } catch (err) {
+    console.error('Fetch admin users error:', err);
+    res.status(500).json({ error: "Failed to fetch user accounts." });
+  }
+});
+
+// 9. POST /api/admin/users - Securely create a new user account (Superadmin only)
+app.post('/api/admin/users', authenticateJWT, authorize(['Superadmin']), async (req, res) => {
+  const { name, email, password, role, attendance_rate } = req.body;
+
+  if (!name || !email || !password || !role) {
+    return res.status(400).json({ error: "Name, email, password, and role are required." });
+  }
+
+  try {
+    // Check if name or email already exists
+    const checkRes = await query('SELECT id FROM users WHERE name = $1 OR email = $2', [name, email]);
+    if (checkRes.rowCount > 0) {
+      return res.status(400).json({ error: "A user with this Name or Email already exists." });
+    }
+
+    // Hash the password securely
+    const password_hash = await bcrypt.hash(password, 10);
+    const attendance = parseFloat(attendance_rate || 95.0);
+    const avatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`;
+
+    const insRes = await query(`
+      INSERT INTO users (name, email, password_hash, role, attendance_rate, avatar)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, name, email, role, attendance_rate, avatar, is_active, created_at
+    `, [name, email, password_hash, role, attendance, avatar]);
+
+    res.status(201).json({ success: true, message: "User account created successfully!", user: insRes.rows[0] });
+  } catch (err) {
+    console.error('Create admin user error:', err);
+    res.status(500).json({ error: "Failed to create user account." });
+  }
+});
+
+// 10. POST /api/admin/users/toggle/:id - Toggle active/inactive status of a user (Superadmin only)
+app.post('/api/admin/users/toggle/:id', authenticateJWT, authorize(['Superadmin']), async (req, res) => {
+  try {
+    const targetId = parseInt(req.params.id);
+    
+    // Prevent Superadmin from deactivating themselves
+    if (targetId === req.user.id) {
+      return res.status(400).json({ error: "You cannot deactivate your own administrative account." });
+    }
+
+    const checkRes = await query('SELECT id, is_active FROM users WHERE id = $1', [targetId]);
+    if (checkRes.rowCount === 0) {
+      return res.status(404).json({ error: "Target user not found." });
+    }
+
+    const newStatus = !checkRes.rows[0].is_active;
+    const updRes = await query('UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id, name, is_active', [newStatus, targetId]);
+
+    res.json({ 
+      success: true, 
+      message: `User '${updRes.rows[0].name}' has been ${newStatus ? 'activated' : 'deactivated'} successfully!`, 
+      user: updRes.rows[0] 
+    });
+  } catch (err) {
+    console.error('Toggle user status error:', err);
+    res.status(500).json({ error: "Failed to toggle user account status." });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Electrolyte Solutions API server listening at http://localhost:${port}`);
 });

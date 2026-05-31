@@ -136,6 +136,13 @@ function App() {
   const [rejectionLogInputId, setRejectionLogInputId] = useState(null);
   const [rejectionLogText, setRejectionLogText] = useState('');
   
+  // Superadmin User Management States
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'Employee', attendance_rate: '95.0' });
+  const [isSubmittingUser, setIsSubmittingUser] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  
   // Station readiness checklist states
   const [esdWristStrap, setEsdWristStrap] = useState(false);
   const [ionizerOn, setIonizerOn] = useState(false);
@@ -314,6 +321,13 @@ function App() {
     }
   }, [user, view, selectedProductionStep, productionLotId, stockData]);
 
+  // Load Superadmin User Management accounts list reactively
+  useEffect(() => {
+    if (user && view === 'users' && user.role === 'Superadmin') {
+      fetchAdminUsers();
+    }
+  }, [user, view]);
+
   const fetchEngineers = async () => {
     try {
       const res = await apiFetch('/api/engineers');
@@ -403,6 +417,68 @@ function App() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchAdminUsers = async () => {
+    try {
+      if (!user || user.role !== 'Superadmin') return;
+      setAdminUsersLoading(true);
+      const res = await apiFetch('/api/admin/users');
+      if (res.ok) {
+        const data = await res.json();
+        setAdminUsers(data);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to fetch active system accounts.', 'danger');
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!user || user.role !== 'Superadmin') return;
+    
+    setIsSubmittingUser(true);
+    try {
+      const res = await apiFetch('/api/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(newUserForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'User account provisioned successfully!');
+        setNewUserForm({ name: '', email: '', password: '', role: 'Employee', attendance_rate: '95.0' });
+        fetchAdminUsers();
+      } else {
+        showToast(data.error || 'Failed to provision user.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error connecting to user management API.', 'danger');
+    } finally {
+      setIsSubmittingUser(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (targetUserId) => {
+    if (!user || user.role !== 'Superadmin') return;
+    try {
+      const res = await apiFetch(`/api/admin/users/toggle/${targetUserId}`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'User status updated successfully!');
+        fetchAdminUsers();
+      } else {
+        showToast(data.error || 'Failed to update user status.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error communicating with active directory API.', 'danger');
     }
   };
 
@@ -1039,6 +1115,14 @@ function App() {
             >
               <Trophy size={14} /> Leaderboard
             </button>
+            {user.role === 'Superadmin' && (
+              <button 
+                onClick={() => setView('users')} 
+                className={`app-nav-tab ${view === 'users' ? 'active' : ''}`}
+              >
+                <Users size={14} /> Users
+              </button>
+            )}
           </nav>
 
           {/* Header Right Profile Actions Widget */}
@@ -2863,6 +2947,205 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {view === 'users' && user.role === 'Superadmin' && (
+                <div>
+                  <div className="app-header">
+                    <div>
+                      <span className="app-subtitle">Administrative Controls</span>
+                      <h1 className="app-title"><Users size={20} color="#ffd400" /> User Management Control Center</h1>
+                    </div>
+                    <button onClick={fetchAdminUsers} style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer' }} title="Refresh accounts directory">
+                      <RefreshCw size={18} className={adminUsersLoading ? 'spin' : ''} />
+                    </button>
+                  </div>
+
+                  <div className="widescreen-grid">
+                    {/* Left Column: Create New Account Form */}
+                    <div className="glass-panel" style={{ padding: 20, height: 'fit-content' }}>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Plus size={16} /> Provision New Team Member
+                      </h3>
+                      
+                      <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <div className="form-group">
+                          <label>Full Name</label>
+                          <input 
+                            type="text" 
+                            required 
+                            placeholder="e.g. Mayuri S."
+                            value={newUserForm.name}
+                            onChange={e => setNewUserForm({...newUserForm, name: e.target.value})}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Email Address</label>
+                          <input 
+                            type="email" 
+                            required 
+                            placeholder="e.g. mayuri.s@electrolytesoln.com"
+                            value={newUserForm.email}
+                            onChange={e => setNewUserForm({...newUserForm, email: e.target.value.trim()})}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>Password</label>
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <input 
+                              type={showPassword ? "text" : "password"} 
+                              required 
+                              placeholder="Min 6 characters"
+                              style={{ width: '100%', paddingRight: '40px' }}
+                              value={newUserForm.password}
+                              onChange={e => setNewUserForm({...newUserForm, password: e.target.value})}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
+                            >
+                              <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{showPassword ? "HIDE" : "SHOW"}</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Access Role</label>
+                          <select
+                            value={newUserForm.role}
+                            onChange={e => setNewUserForm({...newUserForm, role: e.target.value})}
+                            style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,0,0,0.4)', color: '#fff', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                          >
+                            <option value="Employee">Employee (Operations Terminal Entry Only)</option>
+                            <option value="Team Lead">Team Lead (Operation Entry + Step clearance Level 1)</option>
+                            <option value="Manager">Manager (Operation Entry + final Step approvals)</option>
+                            <option value="Superadmin">Superadmin (All privileges + User Management)</option>
+                          </select>
+                        </div>
+
+                        <div className="form-group">
+                          <label>Starting Attendance Rating (%)</label>
+                          <input 
+                            type="number" 
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            required 
+                            placeholder="e.g. 95.0"
+                            value={newUserForm.attendance_rate}
+                            onChange={e => setNewUserForm({...newUserForm, attendance_rate: e.target.value})}
+                          />
+                        </div>
+
+                        <button 
+                          type="submit" 
+                          className="btn btn-primary" 
+                          disabled={isSubmittingUser}
+                          style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                        >
+                          {isSubmittingUser ? (
+                            <>
+                              <RefreshCw size={14} className="spin" /> Provisioning Account...
+                            </>
+                          ) : (
+                            <>
+                              <Plus size={14} /> Provision Team Member
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Right Column: Accounts Directory */}
+                    <div className="glass-panel" style={{ padding: 20 }}>
+                      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Activity size={16} /> Active System Accounts ({adminUsers.length})
+                      </h3>
+
+                      {adminUsersLoading ? (
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px 0', flexDirection: 'column', gap: 12 }}>
+                          <RefreshCw className="spin" size={24} color="#ffd400" />
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Refreshing Directory...</span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '600px', overflowY: 'auto', paddingRight: '4px' }}>
+                          {adminUsers.map((item) => {
+                            // Determine role color
+                            let badgeClass = 'badge-success'; // Employee
+                            if (item.role === 'Team Lead') badgeClass = 'badge-warning';
+                            else if (item.role === 'Manager') badgeClass = 'badge-info';
+                            else if (item.role === 'Superadmin') badgeClass = 'badge-danger';
+
+                            const isSelf = item.id === user.id;
+
+                            return (
+                              <div 
+                                key={item.id} 
+                                className="leader-item glass-panel" 
+                                style={{ 
+                                  background: item.is_active ? 'rgba(255,255,255,0.01)' : 'rgba(239, 68, 68, 0.02)', 
+                                  borderRadius: 12, 
+                                  border: item.is_active ? '1px solid rgba(255,255,255,0.02)' : '1px solid rgba(239, 68, 68, 0.08)',
+                                  margin: 0,
+                                  opacity: item.is_active ? 1 : 0.65,
+                                  padding: 12
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', justifyContent: 'space-between' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                    <img src={item.avatar} alt={item.name} className="leader-avatar" style={{ width: 36, height: 36, border: '1.5px solid rgba(255,255,255,0.05)' }} />
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span className="leader-name" style={{ fontSize: '0.8rem', fontWeight: 800 }}>{item.name}</span>
+                                        <span className={`badge ${badgeClass}`} style={{ fontSize: '0.52rem', padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                          {item.role}
+                                        </span>
+                                        {isSelf && (
+                                          <span style={{ fontSize: '0.55rem', background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '1px 4px', borderRadius: 4 }}>
+                                            You
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'block', marginTop: 2 }}>
+                                        {item.email} • Attendance: {parseFloat(item.attendance_rate)}%
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <button
+                                      onClick={() => handleToggleUserStatus(item.id)}
+                                      disabled={isSelf}
+                                      style={{
+                                        background: item.is_active ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                        border: `1px solid ${item.is_active ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                                        color: item.is_active ? '#10b981' : '#ef4444',
+                                        padding: '4px 10px',
+                                        borderRadius: '30px',
+                                        cursor: isSelf ? 'not-allowed' : 'pointer',
+                                        fontSize: '0.62rem',
+                                        fontWeight: 800,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        opacity: isSelf ? 0.4 : 1
+                                      }}
+                                      title={isSelf ? "You cannot deactivate your own account" : `Click to ${item.is_active ? 'deactivate' : 'activate'} this user`}
+                                    >
+                                      {item.is_active ? 'Active' : 'Inactive'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -2915,6 +3198,16 @@ function App() {
               <Trophy />
               Trophy
             </button>
+
+            {user.role === 'Superadmin' && (
+              <button 
+                onClick={() => setView('users')} 
+                className={`nav-item ${view === 'users' ? 'active' : ''}`}
+              >
+                <Users />
+                Users
+              </button>
+            )}
           </div>
         )}
 
