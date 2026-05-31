@@ -139,7 +139,7 @@ function App() {
   // Superadmin User Management States
   const [adminUsers, setAdminUsers] = useState([]);
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
-  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'Employee', attendance_rate: '95.0' });
+  const [newUserForm, setNewUserForm] = useState({ firstName: '', lastName: '', role: 'Employee', attendance_rate: '95.0' });
   const [isSubmittingUser, setIsSubmittingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -441,16 +441,43 @@ function App() {
     e.preventDefault();
     if (!user || user.role !== 'Superadmin') return;
     
+    const firstName = newUserForm.firstName?.trim() || '';
+    const lastName = newUserForm.lastName?.trim() || '';
+    
+    if (!firstName || !lastName) {
+      showToast('Both First Name and Last Name are required.', 'danger');
+      return;
+    }
+    
+    // Capitalize first name and last name properly: e.g. "John Doe"
+    const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
+    const formattedFirstName = firstName.split(' ').map(capitalize).join(' ');
+    const formattedLastName = lastName.split(' ').map(capitalize).join(' ');
+    const name = `${formattedFirstName} ${formattedLastName}`;
+    
+    // Generate email: <firstname>.<first letter of surname>@electrolytesoln.com in lowercase
+    const cleanFirstName = firstName.toLowerCase().replace(/\s+/g, '');
+    const firstLetterOfSurname = lastName.charAt(0).toLowerCase();
+    const email = `${cleanFirstName}.${firstLetterOfSurname}@electrolytesoln.com`;
+    
+    const password = 'Electrolyte2026!';
+    
     setIsSubmittingUser(true);
     try {
       const res = await apiFetch('/api/admin/users', {
         method: 'POST',
-        body: JSON.stringify(newUserForm)
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          role: newUserForm.role,
+          attendance_rate: newUserForm.attendance_rate
+        })
       });
       const data = await res.json();
       if (res.ok) {
         showToast(data.message || 'User account provisioned successfully!');
-        setNewUserForm({ name: '', email: '', password: '', role: 'Employee', attendance_rate: '95.0' });
+        setNewUserForm({ firstName: '', lastName: '', role: 'Employee', attendance_rate: '95.0' });
         fetchAdminUsers();
       } else {
         showToast(data.error || 'Failed to provision user.', 'danger');
@@ -2968,48 +2995,103 @@ function App() {
                       </h3>
                       
                       <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                        <div className="form-group">
-                          <label>Full Name</label>
-                          <input 
-                            type="text" 
-                            required 
-                            placeholder="e.g. Mayuri S."
-                            value={newUserForm.name}
-                            onChange={e => setNewUserForm({...newUserForm, name: e.target.value})}
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label>Email Address</label>
-                          <input 
-                            type="email" 
-                            required 
-                            placeholder="e.g. mayuri.s@electrolytesoln.com"
-                            value={newUserForm.email}
-                            onChange={e => setNewUserForm({...newUserForm, email: e.target.value.trim()})}
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label>Password</label>
-                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label>First Name</label>
                             <input 
-                              type={showPassword ? "text" : "password"} 
+                              type="text" 
                               required 
-                              placeholder="Min 6 characters"
-                              style={{ width: '100%', paddingRight: '40px' }}
-                              value={newUserForm.password}
-                              onChange={e => setNewUserForm({...newUserForm, password: e.target.value})}
+                              placeholder="e.g. Mayuri"
+                              value={newUserForm.firstName || ''}
+                              onChange={e => setNewUserForm({...newUserForm, firstName: e.target.value})}
+                              style={{ width: '100%' }}
                             />
-                            <button
-                              type="button"
-                              onClick={() => setShowPassword(!showPassword)}
-                              style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
-                            >
-                              <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{showPassword ? "HIDE" : "SHOW"}</span>
-                            </button>
+                          </div>
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label>Last Name</label>
+                            <input 
+                              type="text" 
+                              required 
+                              placeholder="e.g. Sharma"
+                              value={newUserForm.lastName || ''}
+                              onChange={e => setNewUserForm({...newUserForm, lastName: e.target.value})}
+                              style={{ width: '100%' }}
+                            />
                           </div>
                         </div>
+
+                        {(() => {
+                          const previewFirstName = newUserForm.firstName?.trim() || '';
+                          const previewLastName = newUserForm.lastName?.trim() || '';
+                          const capitalizeWord = (str) => {
+                            if (!str) return '';
+                            return str.charAt(0).toUpperCase() + str.slice(1);
+                          };
+                          const previewFormattedFirstName = previewFirstName.split(' ').map(capitalizeWord).join(' ');
+                          const previewFormattedLastName = previewLastName.split(' ').map(capitalizeWord).join(' ');
+                          const previewName = (previewFirstName || previewLastName) 
+                            ? `${previewFormattedFirstName} ${previewFormattedLastName}`.trim() 
+                            : '';
+
+                          const previewCleanFirstName = previewFirstName.toLowerCase().replace(/\s+/g, '');
+                          const previewFirstLetter = previewLastName ? previewLastName.charAt(0).toLowerCase() : '';
+                          const previewEmail = previewFirstName 
+                            ? `${previewCleanFirstName}.${previewFirstLetter || '?' }@electrolytesoln.com` 
+                            : '';
+                          const defaultPassword = 'Electrolyte2026!';
+                          
+                          if (!previewFirstName && !previewLastName) return null;
+
+                          return (
+                            <div className="glass-panel" style={{
+                              padding: '16px',
+                              background: 'rgba(255, 212, 0, 0.02)',
+                              borderColor: 'rgba(255, 212, 0, 0.15)',
+                              borderRadius: '12px',
+                              marginTop: '2px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '12px'
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ffd400', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <ShieldCheck size={14} color="#ffd400" /> Automated Vitals Preview
+                                </span>
+                                <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '12px', fontWeight: 700 }}>
+                                  Ready to Sync
+                                </span>
+                              </div>
+                              
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>Display Name:</span>
+                                  <span style={{ fontWeight: 700, color: '#fff' }}>{previewName || '—'}</span>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>Login Email:</span>
+                                  <span style={{ fontWeight: 700, color: '#ffd400', fontFamily: 'monospace' }}>{previewEmail || '—'}</span>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                                  <span style={{ color: 'var(--text-muted)' }}>Login Password:</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                                      {showPassword ? defaultPassword : '••••••••••••••••'}
+                                    </span>
+                                    <button 
+                                      type="button" 
+                                      onClick={() => setShowPassword(!showPassword)} 
+                                      style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', padding: '0 4px', fontSize: '0.7rem', fontWeight: 700 }}
+                                    >
+                                      {showPassword ? 'HIDE' : 'SHOW'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         <div className="form-group">
                           <label>Access Role</label>
