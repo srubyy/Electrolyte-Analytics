@@ -25,7 +25,8 @@ const transporter = nodemailer.createTransport({
   },
   connectionTimeout: 10000, // 10 seconds connection timeout
   greetingTimeout: 10000,
-  socketTimeout: 10000
+  socketTimeout: 10000,
+  family: 4 // Forces IPv4 to bypass ENETUNREACH IPv6 routing bugs on Render hosting
 });
 
 const app = express();
