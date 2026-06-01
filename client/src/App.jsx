@@ -2847,16 +2847,19 @@ function App() {
                                   </button>
                                 )}
 
-                                <button 
-                                  onClick={() => {
-                                    setRejectingLogId(log.id);
-                                    setShowRejectModal(true);
-                                  }}
-                                  className="btn btn-secondary"
-                                  style={{ flex: 0.6, padding: 8, margin: 0, fontSize: '0.72rem', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
-                                >
-                                  Reject
-                                </button>
+                                {((user.role === 'Team Lead' && log.approval_status === 'Pending Team Lead') ||
+                                  (['Superadmin', 'Manager'].includes(user.role) && log.approval_status === 'Pending Manager')) && (
+                                  <button 
+                                    onClick={() => {
+                                      setRejectingLogId(log.id);
+                                      setShowRejectModal(true);
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ flex: 0.6, padding: 8, margin: 0, fontSize: '0.72rem', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+                                  >
+                                    Reject
+                                  </button>
+                                )}
                               </div>
                             </div>
                           ))

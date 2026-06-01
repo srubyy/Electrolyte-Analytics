@@ -1012,32 +1012,19 @@ app.post('/api/repair/next', authenticateJWT, async (req, res) => {
 // 2-Tier Logging Approvals REST Routes
 // ==========================================
 
-// 9. GET /api/approvals - Fetch pending approvals depending on role (Team Lead vs Manager+)
+// 9. GET /api/approvals - Fetch pending approvals globally for both roles (Team Lead vs Manager+)
 app.get('/api/approvals', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), async (req, res) => {
   try {
-    let approvalsRes;
-    if (req.user.role === 'Team Lead') {
-      // Team Leads see Pending Team Lead approvals
-      approvalsRes = await query(`
-        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name 
-        FROM pending_logs pl
-        JOIN panels p ON pl.panel_id = p.id
-        JOIN users u ON pl.engineer_id = u.id
-        WHERE pl.approval_status = 'Pending Team Lead'
-        ORDER BY pl.id ASC
-      `, [], req.user);
-    } else {
-      // Managers and Superadmins see Pending Manager approvals
-      approvalsRes = await query(`
-        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name
-        FROM pending_logs pl
-        JOIN panels p ON pl.panel_id = p.id
-        JOIN users u ON pl.engineer_id = u.id
-        LEFT JOIN users tl ON pl.team_lead_id = tl.id
-        WHERE pl.approval_status = 'Pending Manager'
-        ORDER BY pl.id ASC
-      `, [], req.user);
-    }
+    // Both Team Leads and Managers/Superadmins see all pending clearances to view the full pipeline, but actions are role-locked.
+    const approvalsRes = await query(`
+      SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name
+      FROM pending_logs pl
+      JOIN panels p ON pl.panel_id = p.id
+      JOIN users u ON pl.engineer_id = u.id
+      LEFT JOIN users tl ON pl.team_lead_id = tl.id
+      WHERE pl.approval_status IN ('Pending Team Lead', 'Pending Manager')
+      ORDER BY pl.id ASC
+    `, [], req.user);
 
     const approvals = approvalsRes.rows.map(row => ({
       ...row,
@@ -1051,8 +1038,8 @@ app.get('/api/approvals', authenticateJWT, authorize(['Superadmin', 'Manager', '
   }
 });
 
-// 10. POST /api/approvals/tl-approve - Team Lead advances log to Manager (Team Lead/Superadmin/Manager)
-app.post('/api/approvals/tl-approve', authenticateJWT, authorize(['Team Lead', 'Superadmin', 'Manager']), async (req, res) => {
+// 10. POST /api/approvals/tl-approve - Team Lead advances log to Manager (Strictly Team Lead only)
+app.post('/api/approvals/tl-approve', authenticateJWT, authorize(['Team Lead']), async (req, res) => {
   const { pending_log_id } = req.body;
   if (!pending_log_id) {
     return res.status(400).json({ error: "Missing pending_log_id." });
@@ -1156,7 +1143,7 @@ app.post('/api/approvals/manager-approve', authenticateJWT, authorize(['Manager'
   }
 });
 
-// 12. POST /api/approvals/reject - Rejects step log (Team Lead, Manager, Superadmin)
+// 12. POST /api/approvals/reject - Rejects step log (Team Lead, Manager, Superadmin role-locked)
 app.post('/api/approvals/reject', authenticateJWT, authorize(['Team Lead', 'Manager', 'Superadmin']), async (req, res) => {
   const { pending_log_id, rejection_reason } = req.body;
   if (!pending_log_id || !rejection_reason) {
@@ -1164,15 +1151,18 @@ app.post('/api/approvals/reject', authenticateJWT, authorize(['Team Lead', 'Mana
   }
 
   try {
+    // Role-based status segregation for rejection
+    const expectedStatus = req.user.role === 'Team Lead' ? 'Pending Team Lead' : 'Pending Manager';
+
     const updateRes = await query(`
       UPDATE pending_logs 
       SET approval_status = 'Rejected', rejection_reason = $1
-      WHERE id = $2 AND approval_status IN ('Pending Team Lead', 'Pending Manager')
+      WHERE id = $2 AND approval_status = $3
       RETURNING *
-    `, [rejection_reason, pending_log_id], req.user);
+    `, [rejection_reason, pending_log_id, expectedStatus], req.user);
 
     if (updateRes.rowCount === 0) {
-      return res.status(404).json({ error: "Pending approval log not found or already processed." });
+      return res.status(404).json({ error: "Pending approval log not found or already processed for your role." });
     }
 
     res.json({ success: true, log: updateRes.rows[0] });
@@ -1461,8 +1451,8 @@ app.post('/api/production/log', authenticateJWT, authorize(['Employee']), async 
   }
 });
 
-// 4. POST /api/production/tl-approve - Team Lead advanced log to Manager
-app.post('/api/production/tl-approve', authenticateJWT, authorize(['Team Lead', 'Superadmin', 'Manager']), async (req, res) => {
+// 4. POST /api/production/tl-approve - Team Lead advanced log to Manager (Strictly Team Lead only)
+app.post('/api/production/tl-approve', authenticateJWT, authorize(['Team Lead']), async (req, res) => {
   const { pending_log_id } = req.body;
   if (!pending_log_id) {
     return res.status(400).json({ error: "Missing pending log ID." });
@@ -1549,7 +1539,7 @@ app.post('/api/production/manager-approve', authenticateJWT, authorize(['Manager
   }
 });
 
-// 6. POST /api/production/reject - Reject pending log with reason
+// 6. POST /api/production/reject - Reject pending log with reason (Team Lead vs Manager+)
 app.post('/api/production/reject', authenticateJWT, authorize(['Team Lead', 'Manager', 'Superadmin']), async (req, res) => {
   const { pending_log_id, rejection_reason } = req.body;
   if (!pending_log_id || !rejection_reason) {
@@ -1557,15 +1547,18 @@ app.post('/api/production/reject', authenticateJWT, authorize(['Team Lead', 'Man
   }
 
   try {
+    // Role-based status segregation for rejection
+    const expectedStatus = req.user.role === 'Team Lead' ? 'Pending Team Lead' : 'Pending Manager';
+
     const updateRes = await query(`
       UPDATE pending_production_logs 
       SET approval_status = 'Rejected', rejection_reason = $1
-      WHERE id = $2 AND approval_status IN ('Pending Team Lead', 'Pending Manager')
+      WHERE id = $2 AND approval_status = $3
       RETURNING *
-    `, [rejection_reason, pending_log_id]);
+    `, [rejection_reason, pending_log_id, expectedStatus]);
 
     if (updateRes.rowCount === 0) {
-      return res.status(404).json({ error: "Pending production log not found." });
+      return res.status(404).json({ error: "Pending production log not found or already processed for your role." });
     }
 
     res.json({ success: true, log: updateRes.rows[0] });
