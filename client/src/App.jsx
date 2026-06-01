@@ -1391,11 +1391,11 @@ function App() {
                           <History size={14} /> Live Line Activity Log
                         </h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', background: 'rgba(255,255,255,0.01)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'rgba(255,255,255,0.01)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.02)' }}>
                             <span style={{ fontFamily: 'monospace', color: '#ffd400' }}>ESRP2P5918E26128R0100</span>
                             <span style={{ fontSize: '0.62rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>QC PASS</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', background: 'rgba(255,255,255,0.01)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.02)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'rgba(255,255,255,0.01)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.02)' }}>
                             <span style={{ fontFamily: 'monospace', color: '#ffd400' }}>ESRP2P5919E26128R0382</span>
                             <span style={{ fontSize: '0.62rem', color: '#ffd400', background: 'rgba(255, 212, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>REWORKED</span>
                           </div>
@@ -1710,7 +1710,7 @@ function App() {
                               
                               return (
                                 <div key={client.id} style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
                                     <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>{client.name}</span>
                                     <span style={{ fontSize: '0.7rem', color: '#ffd400', fontWeight: 600 }}>{totalAvailable} / {totalReceived} avl</span>
                                   </div>
@@ -1771,7 +1771,7 @@ function App() {
                           const isComplete = lot.status === 'Complete';
                           return (
                             <div key={lot.id} style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(255, 255, 255, 0.015)', borderColor: isComplete ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.15)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
                                 <div>
                                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Client: {lot.client_name}</span>
                                   <h3 style={{ fontSize: '1.05rem', fontWeight: 800, margin: '2px 0 0 0' }}>Lot {lot.lot_no} <span style={{ color: '#475569', fontSize: '0.85rem' }}>({lot.batch_no} • {lot.pixel_pitch})</span></h3>
@@ -1929,7 +1929,7 @@ function App() {
 
                       {/* Stock List Pagination Controls at the bottom of Right Column Panel */}
                       {totalStockPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
                           <button 
                             onClick={() => setCurrentStockPage(prev => Math.max(prev - 1, 1))} 
                             disabled={currentStockPage === 1}
@@ -2526,7 +2526,7 @@ function App() {
                                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending clearance approvals for this step.</div>
                               ) : (
                                 pendingProductionLogs.filter(p => p.operator_id === user.id).map(p => (
-                                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 6, fontSize: '0.72rem' }}>
+                                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 6, fontSize: '0.72rem' }}>
                                     <div>
                                       <strong>{p.pcb_type}</strong> • Qty: {Object.values(p.step_data)[0]} units
                                       {p.rejection_reason && <div style={{ color: '#ef4444', fontSize: '0.65rem' }}>❌ Rejected Reason: {p.rejection_reason}</div>}
@@ -2541,7 +2541,7 @@ function App() {
                       ) : (
                         /* Render for Team Lead & Managers/Superadmins - Pending Approvals list for Selected Step */
                         <div>
-                          <h2 className="vetting-queue-header" style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <h2 className="vetting-queue-header" style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                             <span>Vetting & Approvals Queue - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}</span>
                             <button 
                               onClick={() => fetchPendingProductionLogs(selectedProductionStep)} 
@@ -2724,7 +2724,7 @@ function App() {
                         </p>
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                             <div>
                               <strong style={{ fontSize: '0.75rem', color: '#fca5a5' }}>Step 7 (QC Rework)</strong>
                               <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>High rate of Solder bridge failures</div>
@@ -2732,7 +2732,7 @@ function App() {
                             <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ef4444' }}>8 reworks</span>
                           </div>
 
-                          <div style={{ padding: 10, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ padding: 10, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                             <div>
                               <strong style={{ fontSize: '0.75rem', color: '#fcd34d' }}>Step 14 (Visual QC Vetting)</strong>
                               <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>Awaiting manager final sign-off</div>
@@ -2772,18 +2772,18 @@ function App() {
 
                       {/* Clearance SLA Breach Risk Monitor */}
                       <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
                             <AlertCircle size={14} /> SLA Breach Risk Monitor
                           </h4>
                           <span style={{ fontSize: '0.62rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 6px', borderRadius: 4, fontWeight: 700, animation: 'pulse-danger 2s infinite' }}>RISK HIGH</span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.7rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                             <span style={{ fontFamily: 'monospace', color: '#fca5a5', fontWeight: 700 }}>ESRP2P5918E26128R0100</span>
                             <span style={{ color: '#ef4444', fontWeight: 800 }}>42 mins ago</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: 'rgba(255, 255, 255, 0.01)', borderRadius: 6, border: '1px solid rgba(255, 255, 255, 0.02)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(255, 255, 255, 0.01)', borderRadius: 6, border: '1px solid rgba(255, 255, 255, 0.02)' }}>
                             <span style={{ fontFamily: 'monospace', color: '#fff' }}>ESRP2P5919E26128R0382</span>
                             <span style={{ color: 'var(--text-muted)' }}>18 mins ago</span>
                           </div>
@@ -2809,7 +2809,7 @@ function App() {
                         ) : (
                           approvalsData.map(log => (
                             <div key={log.id} style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
                                 <div>
                                   <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>ENGINEER: {log.engineer_name}</span>
                                   <h4 style={{ fontSize: '0.9rem', fontWeight: 800, margin: '2px 0 0 0' }}>{log.barcode}</h4>
@@ -3056,7 +3056,7 @@ function App() {
                               flexDirection: 'column',
                               gap: '12px'
                             }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ffd400', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}>
                                   <ShieldCheck size={14} color="#ffd400" /> Automated Vitals Preview
                                 </span>
@@ -3066,17 +3066,17 @@ function App() {
                               </div>
                               
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
                                   <span style={{ color: 'var(--text-muted)' }}>Display Name:</span>
                                   <span style={{ fontWeight: 700, color: '#fff' }}>{previewName || '—'}</span>
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
                                   <span style={{ color: 'var(--text-muted)' }}>Login Email:</span>
                                   <span style={{ fontWeight: 700, color: '#ffd400', fontFamily: 'monospace' }}>{previewEmail || '—'}</span>
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem' }}>
                                   <span style={{ color: 'var(--text-muted)' }}>Login Password:</span>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                     <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
@@ -3301,7 +3301,7 @@ function App() {
       {showHistoryModal && selectedLotHistory && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto', padding: 20, borderColor: '#ffd400', background: '#111827' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Lot {historyLotNo} - Refurb History</h3>
               <button 
                 onClick={() => { setShowHistoryModal(false); setSelectedLotHistory(null); }}
@@ -3316,7 +3316,7 @@ function App() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {selectedLotHistory.map(p => (
-                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 10, background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: '0.78rem' }}>
+                  <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 10, background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: '0.78rem' }}>
                     <div>
                       <div style={{ fontWeight: 800 }}>{p.barcode}</div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>Sr No {p.sr_no} • {p.side} Side • Operator: {p.engineer_name || 'Unassigned'}</div>
@@ -3372,7 +3372,7 @@ function App() {
       {showOutwardModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#10b981', background: '#111827' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>Record Outward Dispatch</h3>
               <button 
                 onClick={() => { setShowOutwardModal(false); setOutwardForm({ lot_id: '', qty: '', remarks: '' }); }}
@@ -3440,7 +3440,7 @@ function App() {
       {showReturnModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#ef4444', background: '#111827' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>Record Returned Stock</h3>
               <button 
                 onClick={() => { setShowReturnModal(false); setReturnForm({ lot_id: '', qty: '', reason: 'Solder Defect', remarks: '' }); }}
@@ -3515,7 +3515,7 @@ function App() {
       {showRedispatchModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#3b82f6', background: '#111827' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3b82f6' }}>Record Returned Lot Redispatch</h3>
               <button 
                 onClick={() => { setShowRedispatchModal(false); setRedispatchForm({ lot_id: '', qty: '', remarks: '' }); }}
@@ -3583,7 +3583,7 @@ function App() {
       {showTransactionsModal && selectedLotTransactions && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="glass-panel" style={{ width: '90%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto', padding: 20, borderColor: '#ffd400', background: '#111827' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffd400' }}>Lot {transactionsLotNo} - Stock Transaction History</h3>
               <button 
                 onClick={() => { setShowTransactionsModal(false); setSelectedLotTransactions([]); }}
@@ -3615,7 +3615,7 @@ function App() {
                       }}></span>
                       
                       <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                           <h4 style={{ fontSize: '0.85rem', fontWeight: 800, color: pillColor }}>
                             {trans.transaction_type} {trans.qty > 0 && `(Qty: ${trans.qty})`}
                           </h4>
