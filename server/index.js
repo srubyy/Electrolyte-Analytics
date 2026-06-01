@@ -14,7 +14,10 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Initialize Resend SDK using the required environment variable
+// DEPRECATION NOTE: Gmail SMTP via Nodemailer has been completely removed due to containerized hosting
+// environment limitations on Render (IPv6 routing ENETUNREACH issues and port 587 ETIMEDOUT connection blocks).
+// The email system has been fully migrated to Resend's secure HTTP REST API.
+// Initialize Resend SDK client using the RESEND_API_KEY environment variable.
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const app = express();
@@ -1833,7 +1836,8 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
 </html>
     `;
 
-    // Firing Live Email via Resend SDK
+    // Firing Live Email via Resend HTTP REST API SDK
+    // This replaces Nodemailer SMTP dispatch to bypass outbound mail port restrictions and DNS routing timeouts on Render.
     if (resend) {
       console.log(`[Resend SDK] Attempting live email dispatch to ${recipient_email}...`);
       const resendFrom = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
