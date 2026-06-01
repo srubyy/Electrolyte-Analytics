@@ -7,10 +7,10 @@ export const AuthProvider = ({ children }) => {
   const [accessToken, setAccessToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session from localStorage on mount
+  // Restore session from sessionStorage on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('es_user');
-    const storedToken = localStorage.getItem('es_access_token');
+    const storedUser = sessionStorage.getItem('es_user');
+    const storedToken = sessionStorage.getItem('es_access_token');
     
     if (storedUser && storedToken) {
       setUser(JSON.parse(storedUser));
@@ -33,10 +33,10 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.error || 'Login failed.');
       }
       
-      // Persist state
-      localStorage.setItem('es_user', JSON.stringify(data.user));
-      localStorage.setItem('es_access_token', data.accessToken);
-      localStorage.setItem('es_refresh_token', data.refreshToken);
+      // Persist state in sessionStorage
+      sessionStorage.setItem('es_user', JSON.stringify(data.user));
+      sessionStorage.setItem('es_access_token', data.accessToken);
+      sessionStorage.setItem('es_refresh_token', data.refreshToken);
       
       setUser(data.user);
       setAccessToken(data.accessToken);
@@ -63,9 +63,9 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout request failed:', err);
     } finally {
       // Clear persistence regardless of request success
-      localStorage.removeItem('es_user');
-      localStorage.removeItem('es_access_token');
-      localStorage.removeItem('es_refresh_token');
+      sessionStorage.removeItem('es_user');
+      sessionStorage.removeItem('es_access_token');
+      sessionStorage.removeItem('es_refresh_token');
       
       setUser(null);
       setAccessToken(null);
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   // Authenticated fetch wrapper with automated refresh rotation on 401
   const apiFetch = async (url, options = {}) => {
     // 1. Get token
-    let currentToken = accessToken || localStorage.getItem('es_access_token');
+    let currentToken = accessToken || sessionStorage.getItem('es_access_token');
     
     // Set headers
     const headers = {
@@ -97,7 +97,7 @@ export const AuthProvider = ({ children }) => {
     // 3. Handle token expiry (401)
     if (res.status === 401) {
       console.log('Access token expired or unauthorized (401), attempting token refresh...');
-      const storedRefreshToken = localStorage.getItem('es_refresh_token');
+      const storedRefreshToken = sessionStorage.getItem('es_refresh_token');
       
       if (!storedRefreshToken) {
         // No refresh token available, force logout
@@ -118,8 +118,8 @@ export const AuthProvider = ({ children }) => {
         if (refreshRes.ok && refreshData.accessToken) {
           console.log('Token refresh succeeded. Rotated access token received.');
           // Update persistence and state
-          localStorage.setItem('es_access_token', refreshData.accessToken);
-          localStorage.setItem('es_refresh_token', refreshData.refreshToken);
+          sessionStorage.setItem('es_access_token', refreshData.accessToken);
+          sessionStorage.setItem('es_refresh_token', refreshData.refreshToken);
           setAccessToken(refreshData.accessToken);
 
           // 4. Retry original request with new access token
