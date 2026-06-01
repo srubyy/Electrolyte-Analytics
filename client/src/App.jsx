@@ -276,6 +276,14 @@ function App() {
     remark: ''
   });
 
+  // Step Detail Modal States
+  const [showStepDetailModal, setShowStepDetailModal] = useState(false);
+  const [stepDetailLoading, setStepDetailLoading] = useState(false);
+  const [stepDetailPanels, setStepDetailPanels] = useState([]);
+  const [stepDetailStepNo, setStepDetailStepNo] = useState(null);
+  const [stepDetailSearchQuery, setStepDetailSearchQuery] = useState('');
+  const [groupByLotEnabled, setGroupByLotEnabled] = useState(true);
+
   // Global Notification
   const [notification, setNotification] = useState(null);
 
@@ -353,6 +361,26 @@ function App() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const fetchStepPanels = async (stepNo) => {
+    setStepDetailLoading(true);
+    setStepDetailPanels([]);
+    setStepDetailStepNo(stepNo);
+    try {
+      const res = await apiFetch(`/api/panels?step_no=${stepNo}`);
+      if (res.ok) {
+        const data = await res.json();
+        setStepDetailPanels(data);
+      } else {
+        showToast("Failed to load step panels", "danger");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Error connecting to server", "danger");
+    } finally {
+      setStepDetailLoading(false);
     }
   };
 
@@ -2002,7 +2030,30 @@ function App() {
                               boxShadow: isActive ? '0 0 10px rgba(255, 212, 0, 0.15)' : 'none'
                             }}
                           >
-                            <div style={{ fontSize: '0.7rem', color: isActive ? '#ffd400' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                              <span style={{ fontSize: '0.7rem', color: isActive ? '#ffd400' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</span>
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  fetchStepPanels(stepNo);
+                                  setShowStepDetailModal(true);
+                                }}
+                                style={{
+                                  fontSize: '0.62rem',
+                                  color: '#ffd400',
+                                  background: 'rgba(255, 212, 0, 0.1)',
+                                  border: '1px solid rgba(255, 212, 0, 0.2)',
+                                  borderRadius: 4,
+                                  padding: '1px 5px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s',
+                                  fontWeight: 700
+                                }}
+                                title="View Panels details at this step"
+                              >
+                                🔍 Panels
+                              </span>
+                            </div>
                             <div style={{ fontSize: '0.72rem', fontWeight: isActive ? 800 : 500, color: isActive ? '#fff' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>{name}</div>
                           </div>
                         );
@@ -3296,6 +3347,175 @@ function App() {
           </div>
         )}
 
+      {/* MODAL: Step Active Panels Detail */}
+      {showStepDetailModal && stepDetailStepNo && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 20, borderColor: 'var(--color-primary)', background: '#0b0f19', borderRadius: 16, boxShadow: 'var(--shadow-glow)' }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12, marginBottom: 16 }}>
+              <div>
+                <span className="app-subtitle" style={{ fontSize: '0.65rem' }}>Stepwise Live Inventory</span>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', marginTop: 2 }}>
+                  Step {stepDetailStepNo}: {STEP_NAMES[stepDetailStepNo - 1]}
+                </h3>
+              </div>
+              <button 
+                onClick={() => { setShowStepDetailModal(false); setStepDetailPanels([]); setStepDetailSearchQuery(''); }}
+                style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '50%', color: '#ef4444', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s' }}
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Control Toolbar (Search, Filter, Group Toggle) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              
+              {/* Search input */}
+              <div style={{ position: 'relative', width: '100%' }}>
+                <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search panels by barcode, lot, or engineer..." 
+                  value={stepDetailSearchQuery}
+                  onChange={e => setStepDetailSearchQuery(e.target.value)}
+                  style={{ padding: '8px 12px 8px 34px', fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 212, 0, 0.15)', borderRadius: 8, color: '#fff' }}
+                />
+              </div>
+
+              {/* Group Toggle & Count Display */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Group by Lot:</span>
+                  <button 
+                    onClick={() => setGroupByLotEnabled(!groupByLotEnabled)}
+                    style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                  >
+                    {groupByLotEnabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+                  </button>
+                </div>
+                
+                <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
+                  {stepDetailLoading ? (
+                    <span>Loading...</span>
+                  ) : (
+                    <span>
+                      {(() => {
+                        const q = stepDetailSearchQuery.toLowerCase().trim();
+                        const filtered = stepDetailPanels.filter(p => {
+                          if (!q) return true;
+                          return (
+                            p.barcode.toLowerCase().includes(q) ||
+                            String(p.lot_no).toLowerCase().includes(q) ||
+                            p.engineer_name.toLowerCase().includes(q)
+                          );
+                        });
+                        return q 
+                          ? `Showing ${filtered.length} of ${stepDetailPanels.length} panels` 
+                          : `${stepDetailPanels.length} active panels`;
+                      })()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body / Panels List */}
+            <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
+              {stepDetailLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                  <RefreshCw size={24} className="animate-spin" style={{ color: 'var(--color-primary)', marginBottom: 8 }} />
+                  <span style={{ fontSize: '0.75rem' }}>Loading stepwise panels inventory...</span>
+                </div>
+              ) : stepDetailPanels.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                  No active panels currently in this station.
+                </div>
+              ) : (() => {
+                const q = stepDetailSearchQuery.toLowerCase().trim();
+                const filtered = stepDetailPanels.filter(p => {
+                  if (!q) return true;
+                  return (
+                    p.barcode.toLowerCase().includes(q) ||
+                    String(p.lot_no).toLowerCase().includes(q) ||
+                    p.engineer_name.toLowerCase().includes(q)
+                  );
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      No panels match your search criteria.
+                    </div>
+                  );
+                }
+
+                if (groupByLotEnabled) {
+                  // Group panels by lot
+                  const groups = {};
+                  filtered.forEach(p => {
+                    const key = p.lot_no || 'Unassigned';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(p);
+                  });
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                      {Object.entries(groups).map(([lotNo, panels]) => {
+                        const sample = panels[0];
+                        return (
+                          <div key={lotNo} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid rgba(255, 212, 0, 0.15)', paddingBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>📦 Lot {lotNo} ({sample.batch_no} • {sample.pixel_pitch})</span>
+                              <span style={{ fontSize: '0.62rem', background: 'rgba(255,255,255,0.05)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
+                                {panels.length} panels
+                              </span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              {panels.map(p => (
+                                <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 8, fontSize: '0.75rem' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <strong style={{ fontSize: '0.78rem', color: '#fff', fontFamily: 'monospace' }}>{p.barcode}</strong>
+                                    <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700 }}>SR #{p.sr_no}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                                    <span>Side: <strong>{p.side}</strong></span>
+                                    <span>Eng: <strong>{p.engineer_name.split(' ')[0]}</strong></span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                } else {
+                  // Render flat list
+                  return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      {filtered.map(p => (
+                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 8, fontSize: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ fontSize: '0.78rem', color: '#fff', fontFamily: 'monospace' }}>{p.barcode}</strong>
+                            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700 }}>Lot {p.lot_no} • SR #{p.sr_no}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                            <span>Side: <strong>{p.side}</strong></span>
+                            <span>Eng: <strong>{p.engineer_name.split(' ')[0]}</strong></span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* MODAL: Lot Panel History Audit */}
       {showHistoryModal && selectedLotHistory && (

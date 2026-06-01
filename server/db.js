@@ -30,20 +30,18 @@ const tables = {
   users: [],
   lots: [],
   repair_steps: [
-    { id: 1, step_no: 1, name: 'Panel Assign' },
-    { id: 2, step_no: 2, name: 'Repair Aging' },
-    { id: 3, step_no: 3, name: 'Panel Opening' },
-    { id: 4, step_no: 4, name: 'Silicon Removing' },
-    { id: 5, step_no: 5, name: 'IC Removing' },
-    { id: 6, step_no: 6, name: 'IC Cleaning' },
-    { id: 7, step_no: 7, name: 'IC Replacing' },
-    { id: 8, step_no: 8, name: 'Debugging' },
-    { id: 9, step_no: 9, name: '1st Aging' },
-    { id: 10, step_no: 10, name: 'Applying Silicon' },
-    { id: 11, step_no: 11, name: 'Half Fitting' },
-    { id: 12, step_no: 12, name: 'Mesh Fitting' },
-    { id: 13, step_no: 13, name: 'QC' },
-    { id: 14, step_no: 14, name: 'Dispatch' }
+    { id: 1, step_no: 1, name: 'Inward' },
+    { id: 2, step_no: 2, name: 'Segregation' },
+    { id: 3, step_no: 3, name: 'Programming' },
+    { id: 4, step_no: 4, name: '1st Testing' },
+    { id: 5, step_no: 5, name: 'Debug' },
+    { id: 6, step_no: 6, name: 'Entry' },
+    { id: 7, step_no: 7, name: 'Cleaning' },
+    { id: 8, step_no: 8, name: 'QC After Cleaning' },
+    { id: 9, step_no: 9, name: 'Marking & Coating' },
+    { id: 10, step_no: 10, name: 'Final Testing' },
+    { id: 11, step_no: 11, name: 'Packing' },
+    { id: 12, step_no: 12, name: 'Final Entry' }
   ],
   panels: [],
   panel_logs: [],
@@ -560,7 +558,7 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
 
   // 6. Panels search & mapping
   if (q.includes('SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, e.name as engineer_name FROM panels p')) {
-    const enriched = tables.panels.map(p => {
+    let enriched = tables.panels.map(p => {
       const lot = tables.lots.find(l => l.id === p.lot_id);
       const engineer = tables.users.find(u => u.id === p.assigned_engineer_id);
       return {
@@ -571,7 +569,16 @@ export const runInMemoryQuery = async (text, params = [], userContext = null) =>
         engineer_name: engineer ? engineer.name : 'Unassigned'
       };
     });
-    enriched.sort((a, b) => b.id - a.id);
+
+    if (q.includes('p.current_step = $1')) {
+      const stepVal = Number(params[0]);
+      enriched = enriched.filter(p => p.current_step === stepVal);
+    }
+    if (q.includes("p.status != 'Scrap'")) {
+      enriched = enriched.filter(p => p.status !== 'Scrap');
+    }
+
+    enriched.sort((a, b) => (a.lot_no || 0) - (b.lot_no || 0) || a.sr_no - b.sr_no);
     return { rows: enriched, rowCount: enriched.length };
   }
 

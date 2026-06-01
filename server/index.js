@@ -753,6 +753,39 @@ app.get('/api/leaderboard', authenticateJWT, async (req, res) => {
   }
 });
 
+// 5b. GET /api/panels - Fetch active panels filtered by step (All authenticated users - with RLS context)
+app.get('/api/panels', authenticateJWT, async (req, res) => {
+  const { step_no } = req.query;
+
+  try {
+    let panelRes;
+    if (step_no) {
+      panelRes = await query(`
+        SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, e.name as engineer_name 
+        FROM panels p
+        JOIN lots l ON p.lot_id = l.id
+        LEFT JOIN users e ON p.assigned_engineer_id = e.id
+        WHERE p.current_step = $1 AND p.status != 'Scrap'
+        ORDER BY l.lot_no ASC, p.sr_no ASC
+      `, [parseInt(step_no)], req.user);
+    } else {
+      panelRes = await query(`
+        SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, e.name as engineer_name 
+        FROM panels p
+        JOIN lots l ON p.lot_id = l.id
+        LEFT JOIN users e ON p.assigned_engineer_id = e.id
+        WHERE p.status != 'Scrap'
+        ORDER BY l.lot_no ASC, p.sr_no ASC
+      `, [], req.user);
+    }
+
+    res.json(panelRes.rows);
+  } catch (err) {
+    console.error('Fetch panels error:', err);
+    res.status(500).json({ error: "Failed to fetch panels." });
+  }
+});
+
 // 6. GET /api/panels/search - Query panel state & filtered audit log (All authenticated users - with RLS context)
 app.get('/api/panels/search', authenticateJWT, async (req, res) => {
   const { barcode, sr_no, lot_no } = req.query;
