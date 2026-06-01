@@ -1566,7 +1566,8 @@ app.post('/api/production/manager-approve', authenticateJWT, authorize(['Manager
     // Adjust lot stats if Step 1 (Inward) is committed
     if (pLog.step_no === 1) {
       const recCount = parseInt(pLog.step_data.qty_received || 0);
-      await client.query('UPDATE lots SET received_qty = $1 WHERE id = $2', [recCount, pLog.lot_id]);
+      const expectedCount = parseInt(pLog.step_data.expected_qty || 0);
+      await client.query('UPDATE lots SET received_qty = $1, qty_sent = $2 WHERE id = $3', [recCount, expectedCount, pLog.lot_id]);
     }
 
     // Adjust lot stats if Step 12 (Final Entry) is committed
