@@ -1,6 +1,4 @@
-import nodemailer from 'nodemailer';
-import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first');
+import { Resend } from 'resend';
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
@@ -16,29 +14,8 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Setup secure live Gmail SMTP transporter forcing IPv4 lookup directly
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  getSocket: (options, callback) => {
-    dns.lookup("smtp.gmail.com", { family: 4 }, (err, address) => {
-      if (err) return callback(err);
-      options.host = address;
-      callback(null, false);
-    });
-  },
-  tls: {
-    servername: "smtp.gmail.com" // Forces TLS validation against domain name instead of raw IP address
-  },
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000
-});
+// Initialize Resend SDK using the required environment variable
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -1856,50 +1833,28 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
 </html>
     `;
 
-    // Firing Live Email via Resend API or SMTP
-    if (process.env.RESEND_API_KEY) {
-      console.log(`[Resend] Attempting live email dispatch via Resend API to ${recipient_email}...`);
+    // Firing Live Email via Resend SDK
+    if (resend) {
+      console.log(`[Resend SDK] Attempting live email dispatch to ${recipient_email}...`);
       const resendFrom = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       const toAddresses = recipient_email.split(',').map(email => email.trim()).filter(Boolean);
       const ccAddresses = cc_emails ? cc_emails.split(',').map(email => email.trim()).filter(Boolean) : undefined;
       
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: `"Electrolyte Solutions" <${resendFrom}>`,
-          to: toAddresses,
-          cc: ccAddresses && ccAddresses.length > 0 ? ccAddresses : undefined,
-          subject: subject,
-          html: emailHtml
-        })
-      });
-      
-      const responseText = await response.text();
-      let responseData;
-      try {
-        responseData = JSON.parse(responseText);
-      } catch (e) {
-        responseData = { text: responseText };
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Resend API error: ${JSON.stringify(responseData)}`);
-      }
-      console.log('[Resend] Live email sent successfully via Resend API!', responseData);
-    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      console.log(`[SMTP] Attempting live email dispatch from ${process.env.EMAIL_USER} to ${recipient_email}...`);
-      await transporter.sendMail({
-        from: `"Electrolyte Solutions" <${process.env.EMAIL_USER}>`,
-        to: recipient_email.trim(),
-        cc: cc_emails ? cc_emails.split(',').map(email => email.trim()) : undefined,
+      const { data, error } = await resend.emails.send({
+        from: `"Electrolyte Solutions" <${resendFrom}>`,
+        to: toAddresses,
+        cc: ccAddresses && ccAddresses.length > 0 ? ccAddresses : undefined,
         subject: subject,
-        html: emailHtml,
+        html: emailHtml
       });
-      console.log('[SMTP] Live email sent successfully!');
+      
+      if (error) {
+        console.error('[Resend SDK Error] Failed to send email via Resend:', error);
+        throw new Error(`Resend SDK error: ${JSON.stringify(error)}`);
+      }
+      console.log('[Resend SDK] Live email sent successfully!', data);
+    } else {
+      console.warn('[Resend SDK Warning] RESEND_API_KEY is not set. Live email dispatch skipped (simulated).');
     }
 
     // Create the scratch/dispatched_emails output directory
@@ -1928,12 +1883,11 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
       VALUES ($1, 'Email Dispatch', $2, $3)
     `, [lot.id, req.user.id, remarks]);
 
-    const isLiveDispatch = !!(process.env.RESEND_API_KEY || (process.env.EMAIL_USER && process.env.EMAIL_PASS));
-    const dispatchMethod = process.env.RESEND_API_KEY ? "Resend API" : "SMTP";
+    const isLiveDispatch = !!process.env.RESEND_API_KEY;
     res.json({
       success: true,
       message: isLiveDispatch
-        ? `Discrepancy email dispatched live successfully via ${dispatchMethod}!`
+        ? "Discrepancy email dispatched live successfully via Resend SDK!"
         : `Discrepancy email simulated successfully! ${fileWritten ? 'Output saved to scratch/dispatched_emails/' + fileName : 'Local filesystem is read-only, simulation logged.'}`,
       file_path: fileWritten ? filePath : null,
       file_name: fileWritten ? fileName : null
@@ -1948,7 +1902,5 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
 app.listen(port, () => {
   console.log(`Electrolyte Solutions API server listening at http://localhost:${port}`);
   
-  // Diagnostics for SMTP resolution
-  dns.lookup("smtp.gmail.com", { all: true }, console.log);
-  dns.lookup("smtp.gmail.com", { family: 4 }, console.log);
+  // Diagnostics removed since SMTP and Nodemailer are fully deprecated in favor of Resend SDK
 });
