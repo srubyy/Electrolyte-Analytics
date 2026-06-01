@@ -2,6 +2,7 @@
   font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  font-size: 17.5px; /* Increased root font-size from 16px to 17.5px to scale all rem-based typography for operations terminal visibility */
 
   color-scheme: dark;
   color: #f3f4f6; /* var(--oem-text-secondary) style */
@@ -87,9 +88,9 @@ body {
 .app-main-content {
   flex: 1;
   width: 100%;
-  max-width: 1300px;
+  max-width: 1650px; /* Increased from 1300px to expand layout and drastically reduce border waste */
   margin: 0 auto;
-  padding: 32px 24px 80px 24px;
+  padding: 24px 32px 80px 32px; /* Adjusted padding to utilize the screen real estate more beautifully */
   display: flex;
   flex-direction: column;
 }
