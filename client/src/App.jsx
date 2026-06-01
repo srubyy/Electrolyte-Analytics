@@ -31,7 +31,8 @@ import {
   Users,
   ShieldAlert,
   Cpu,
-  Activity
+  Activity,
+  Mail
 } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 
@@ -283,6 +284,19 @@ function App() {
   const [stepDetailStepNo, setStepDetailStepNo] = useState(null);
   const [stepDetailSearchQuery, setStepDetailSearchQuery] = useState('');
   const [groupByLotEnabled, setGroupByLotEnabled] = useState(true);
+
+  // Superadmin Discrepancy Email Composer States
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedLotForEmail, setSelectedLotForEmail] = useState(null);
+  const [emailForm, setEmailForm] = useState({
+    recipient_email: '',
+    recipient_name: '',
+    challan_no: '',
+    custom_remarks: '',
+    cc_emails: '',
+    subject: ''
+  });
+  const [emailSending, setEmailSending] = useState(false);
 
   // Global Notification
   const [notification, setNotification] = useState(null);
@@ -1086,6 +1100,71 @@ function App() {
     }
   };
 
+  const handleOpenEmailModal = (lot, shortage) => {
+    const isAtomberg = lot.client_name === 'Atomberg';
+    const isBajaj = lot.client_name === 'Bajaj';
+    
+    const recipientName = isAtomberg ? 'Rohit ji' : (isBajaj ? 'Bajaj Spares Manager' : 'John Doe');
+    const recipientEmail = isAtomberg ? 'info@atomberg.com' : (isBajaj ? 'spares@bajaj.com' : 'contact@xtrememedia.co');
+    const ccEmails = isAtomberg ? 'cwh.mumbai.spare@atomberg.com, chetan.joshi@atomberg.com' : (isBajaj ? 'cc.spares@bajaj.com' : 'cc.support@xtrememedia.co');
+    const subject = `[Discrepancy Report] ${lot.client_name} Lot ${lot.lot_no} - ${shortage > 0 ? 'Shortage' : 'Excess'} Alert`;
+    const challanNo = lot.batch_no || `CH-${lot.lot_no}`;
+    const customRemarks = isAtomberg 
+      ? 'Kindly suggest the way forward and would like to invite @CC CWH Mumbai Spare and @Chetan Joshi Sir to visit our facility and cross verify the quantities.'
+      : 'Please let us know if any further information is required from our side';
+
+    setSelectedLotForEmail(lot);
+    setEmailForm({
+      recipient_email: recipientEmail,
+      recipient_name: recipientName,
+      challan_no: challanNo,
+      custom_remarks: customRemarks,
+      cc_emails: ccEmails,
+      subject: subject
+    });
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    if (!selectedLotForEmail) return;
+    setEmailSending(true);
+
+    try {
+      const res = await apiFetch('/api/admin/email/dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lot_id: selectedLotForEmail.id,
+          recipient_email: emailForm.recipient_email,
+          recipient_name: emailForm.recipient_name,
+          challan_no: emailForm.challan_no,
+          qty_sent: selectedLotForEmail.qty_sent,
+          received_qty: selectedLotForEmail.received_qty,
+          cc_emails: emailForm.cc_emails,
+          subject: emailForm.subject,
+          custom_remarks: emailForm.custom_remarks
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message || 'Discrepancy email simulated successfully!');
+        setShowEmailModal(false);
+        setSelectedLotForEmail(null);
+        fetchStock();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to dispatch email.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('An error occurred while sending email.', 'danger');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   // ==========================================
   // Client-Side CSV Exporters
   // ==========================================
@@ -1814,6 +1893,16 @@ function App() {
                                   >
                                     <History size={16} />
                                   </button>
+
+                                  {shortage !== 0 && user.role === 'Superadmin' && (
+                                    <button 
+                                      onClick={() => handleOpenEmailModal(lot, shortage)}
+                                      style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer', padding: 4 }}
+                                      title="Dispatch Discrepancy Email"
+                                    >
+                                      <Mail size={16} />
+                                    </button>
+                                  )}
                                   
                                   {['Superadmin', 'Manager'].includes(user.role) && (
                                     <button 
@@ -3856,6 +3945,222 @@ function App() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Discrepancy Email Composer Modal */}
+      {showEmailModal && selectedLotForEmail && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: 1050, maxHeight: '90vh', overflowY: 'auto', padding: 24, borderColor: '#ffd400', background: '#111827', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffd400', margin: 0 }}>
+                  📧 Discrepancy Email Dispatcher Center
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Superadmin Action Console • Lot {selectedLotForEmail.lot_no} ({selectedLotForEmail.client_name})
+                </p>
+              </div>
+              <button 
+                onClick={() => { setShowEmailModal(false); setSelectedLotForEmail(null); }}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 4 }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Modal Body: Responsive Dual-Pane Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: 24, flex: 1, overflowY: 'visible' }}>
+              
+              {/* Left Column: Editable Composer Form */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-primary)', letterSpacing: 0.5, margin: 0 }}>
+                  1. Configure Email Header & Metadata
+                </h4>
+
+                <form onSubmit={handleSendEmail} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>Subject Line</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={emailForm.subject}
+                      onChange={e => setEmailForm({ ...emailForm, subject: e.target.value })}
+                      required
+                      style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>Recipient Name</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={emailForm.recipient_name}
+                        onChange={e => setEmailForm({ ...emailForm, recipient_name: e.target.value })}
+                        required
+                        style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>Challan / Ref No.</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={emailForm.challan_no}
+                        onChange={e => setEmailForm({ ...emailForm, challan_no: e.target.value })}
+                        style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>Recipient Email Address</label>
+                    <input 
+                      type="email" 
+                      className="form-control" 
+                      value={emailForm.recipient_email}
+                      onChange={e => setEmailForm({ ...emailForm, recipient_email: e.target.value })}
+                      required
+                      style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>CC Emails (Comma-separated)</label>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={emailForm.cc_emails}
+                      onChange={e => setEmailForm({ ...emailForm, cc_emails: e.target.value })}
+                      placeholder="e.g. spares@client.com, manager@client.com"
+                      style={{ fontSize: '0.8rem', padding: '8px 12px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>Custom Closing / Action Remarks</label>
+                    <textarea 
+                      className="form-control" 
+                      rows="4"
+                      value={emailForm.custom_remarks}
+                      onChange={e => setEmailForm({ ...emailForm, custom_remarks: e.target.value })}
+                      style={{ fontSize: '0.8rem', padding: '8px 12px', resize: 'vertical', minHeight: '80px' }}
+                      placeholder="Enter custom closing statements or invite references..."
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={() => { setShowEmailModal(false); setSelectedLotForEmail(null); }}
+                      style={{ flex: 1, padding: '10px 16px', fontSize: '0.8rem' }}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary" 
+                      disabled={emailSending}
+                      style={{ flex: 1.5, background: '#ffd400', color: '#000000', fontWeight: 800, padding: '10px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                    >
+                      {emailSending ? 'Sending simulated email...' : '✉️ Dispatch Simulated Email'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Right Column: High-Fidelity Live HTML Email Preview Pane */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-primary)', letterSpacing: 0.5, margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>2. Live HTML compiled Preview</span>
+                  <span style={{ fontSize: '0.65rem', color: '#ffd400', background: 'rgba(255,212,0,0.1)', padding: '2px 8px', borderRadius: 4, textTransform: 'none' }}>Hot Reloading</span>
+                </h4>
+
+                {/* Email Client UI Mockup Container */}
+                <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 8, padding: 16, color: '#334155', fontFamily: 'Arial, sans-serif', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06)' }}>
+                  
+                  {/* Email Headers Info */}
+                  <div style={{ fontSize: '0.78rem', borderBottom: '1px solid #e2e8f0', paddingBottom: 10, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <div><strong>From:</strong> Electrolyte Solutions Team &lt;no-reply@electrolyte-solutions.com&gt;</div>
+                    <div><strong>To:</strong> {emailForm.recipient_name} &lt;{emailForm.recipient_email || '...'}&gt;</div>
+                    {emailForm.cc_emails && <div><strong>CC:</strong> {emailForm.cc_emails}</div>}
+                    <div><strong>Subject:</strong> {emailForm.subject || 'Discrepancy Report'}</div>
+                  </div>
+
+                  {/* Real Rendered Email Body */}
+                  <div style={{ background: '#ffffff', padding: 20, borderRadius: 6, border: '1px solid #e2e8f0', fontSize: '0.82rem', lineHeight: 1.5, color: '#333333' }}>
+                    <p style={{ margin: '0 0 16px 0' }}>Dear {emailForm.recipient_name || 'Recipient'},</p>
+                    <p style={{ margin: '0 0 16px 0' }}>Greetings from Electrolyte Solutions..!</p>
+                    
+                    {selectedLotForEmail.client_name === 'Atomberg' ? (
+                      <p style={{ margin: '0 0 16px 0' }}>I would like to inform you about discrepancies observed in the PCB received against Challan No. <strong>{emailForm.challan_no || 'N/A'}</strong>. The following table provides detailed information on the short and excess quantities received:</p>
+                    ) : (
+                      <p style={{ margin: '0 0 16px 0' }}>We have checked Lot No. <strong>{selectedLotForEmail.lot_no}</strong> and found some PCB quantity differences (short/excess). Details are shared below. Kindly review and update.</p>
+                    )}
+
+                    {/* Styled Table Markup matching Backend Output */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', margin: '20px 0', fontSize: '0.78rem', textRendering: 'optimizeLegibility' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Challan No. / Ref</th>
+                          <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Challan Qty</th>
+                          <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Received Qty</th>
+                          <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Diff</th>
+                          <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Discrepancy Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ border: '1px solid #dddddd', padding: 8, textAlign: 'center', backgroundColor: '#fef08a' }}>{emailForm.challan_no || `Lot ${selectedLotForEmail.lot_no}`}</td>
+                          <td style={{ border: '1px solid #dddddd', padding: 8, textAlign: 'center', backgroundColor: '#fef08a' }}>{selectedLotForEmail.qty_sent}</td>
+                          <td style={{ border: '1px solid #dddddd', padding: 8, textAlign: 'center', backgroundColor: '#fef08a' }}>{selectedLotForEmail.received_qty}</td>
+                          <td style={{ 
+                            border: '1px solid #dddddd', 
+                            padding: 8, 
+                            textAlign: 'center', 
+                            fontWeight: 'bold', 
+                            color: '#ffffff', 
+                            backgroundColor: selectedLotForEmail.received_qty < selectedLotForEmail.qty_sent ? '#ef4444' : '#fb923c' 
+                          }}>
+                            {selectedLotForEmail.received_qty < selectedLotForEmail.qty_sent 
+                              ? `-${selectedLotForEmail.qty_sent - selectedLotForEmail.received_qty}` 
+                              : `+${selectedLotForEmail.received_qty - selectedLotForEmail.qty_sent}`}
+                          </td>
+                          <td style={{ border: '1px solid #dddddd', padding: 8, textAlign: 'center', backgroundColor: '#fef08a' }}>
+                            {selectedLotForEmail.received_qty < selectedLotForEmail.qty_sent ? 'Short' : 'Excess'}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {emailForm.custom_remarks ? (
+                      <p style={{ margin: '16px 0', whiteSpace: 'pre-wrap' }}>{emailForm.custom_remarks}</p>
+                    ) : (
+                      selectedLotForEmail.client_name === 'Atomberg' ? (
+                        <p style={{ margin: '16px 0' }}>Kindly suggest the way forward and would like to invite @CC CWH Mumbai Spare and @Chetan Joshi Sir to visit our facility and cross verify the quantities.</p>
+                      ) : (
+                        <p style={{ margin: '16px 0' }}>Please let us know if any further information is required from our side</p>
+                      )
+                    )}
+
+                    <div style={{ marginTop: 30, borderTop: '1px solid #cbd5e1', paddingTop: 16, fontSize: '0.78rem', color: '#64748b' }}>
+                      Warm regards,<br />
+                      <strong>Electrolyte Solutions Team</strong><br />
+                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Automated Operations Dispatcher</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
       )}

@@ -1,11 +1,29 @@
+import nodemailer from 'nodemailer';
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import pool, { query } from './db.js';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+// Setup secure live Gmail SMTP transporter
+const transporter = nodemailer.createTransport({
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -1271,10 +1289,10 @@ app.post('/api/stock/toggle/:id', authenticateJWT, authorize(['Manager', 'Supera
 const getStepSum = async (lotId, stepNo, fields) => {
   const selectCommitted = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
   const comRes = await query(`SELECT ${selectCommitted} FROM production_logs WHERE lot_id = $1 AND step_no = $2`, [lotId, stepNo]);
-  
+
   const selectPending = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
   const penRes = await query(`SELECT ${selectPending} FROM pending_production_logs WHERE lot_id = $1 AND step_no = $2 AND approval_status NOT IN ('Approved', 'Rejected')`, [lotId, stepNo]);
-  
+
   const result = {};
   fields.forEach(f => {
     result[f] = parseInt(comRes.rows[0][f] || 0) + parseInt(penRes.rows[0][f] || 0);
@@ -1325,7 +1343,7 @@ app.get('/api/production/pending', authenticateJWT, async (req, res) => {
     WHERE 1=1
   `;
   const params = [];
-  
+
   // Fetch all pending approvals at both Team Lead and Manager stages so users can see the full pending pipeline
   q += ` AND pl.approval_status IN ('Pending Team Lead', 'Pending Manager')`;
 
@@ -1552,7 +1570,7 @@ app.post('/api/production/manager-approve', authenticateJWT, authorize(['Manager
     if (pLog.step_no === 12) {
       const finalCount = parseInt(pLog.step_data.entry_count || 0);
       await client.query('UPDATE lots SET dispatched_qty = COALESCE(dispatched_qty, 0) + $1 WHERE id = $2', [finalCount, pLog.lot_id]);
-      
+
       // Auto-toggle lot status to Complete if limit reached
       const checkLot = await client.query('SELECT * FROM lots WHERE id = $1', [pLog.lot_id]);
       const activeLot = checkLot.rows[0];
@@ -1697,7 +1715,7 @@ app.post('/api/admin/users', authenticateJWT, authorize(['Superadmin']), async (
 app.post('/api/admin/users/toggle/:id', authenticateJWT, authorize(['Superadmin']), async (req, res) => {
   try {
     const targetId = parseInt(req.params.id);
-    
+
     // Prevent Superadmin from deactivating themselves
     if (targetId === req.user.id) {
       return res.status(400).json({ error: "You cannot deactivate your own administrative account." });
@@ -1711,14 +1729,157 @@ app.post('/api/admin/users/toggle/:id', authenticateJWT, authorize(['Superadmin'
     const newStatus = !checkRes.rows[0].is_active;
     const updRes = await query('UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id, name, is_active', [newStatus, targetId]);
 
-    res.json({ 
-      success: true, 
-      message: `User '${updRes.rows[0].name}' has been ${newStatus ? 'activated' : 'deactivated'} successfully!`, 
-      user: updRes.rows[0] 
+    res.json({
+      success: true,
+      message: `User '${updRes.rows[0].name}' has been ${newStatus ? 'activated' : 'deactivated'} successfully!`,
+      user: updRes.rows[0]
     });
   } catch (err) {
     console.error('Toggle user status error:', err);
     res.status(500).json({ error: "Failed to toggle user account status." });
+  }
+});
+
+// 11. POST /api/admin/email/dispatch - Simulates and logs discrepancy email dispatch (Superadmin only)
+app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin']), async (req, res) => {
+  const {
+    lot_id,
+    recipient_email,
+    recipient_name,
+    challan_no,
+    qty_sent,
+    received_qty,
+    cc_emails,
+    subject,
+    custom_remarks
+  } = req.body;
+
+  if (!lot_id || !recipient_email || !recipient_name) {
+    return res.status(400).json({ error: "Missing required dispatch fields." });
+  }
+
+  try {
+    const lotRes = await query('SELECT * FROM lots WHERE id = $1', [parseInt(lot_id)]);
+    if (lotRes.rowCount === 0) {
+      return res.status(404).json({ error: "Lot not found." });
+    }
+    const lot = lotRes.rows[0];
+
+    const diff = Math.abs(parseInt(qty_sent) - parseInt(received_qty));
+    const isShortage = parseInt(received_qty) < parseInt(qty_sent);
+    const discrepancyType = isShortage ? 'Short' : 'Excess';
+
+    // Compile the formal HTML Email body
+    const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 20px; background-color: #f9f9f9; }
+    .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    h2, h3 { color: #111827; }
+    p { margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin: 25px 0; font-size: 14px; text-align: left; }
+    th { background-color: #ffd400; color: #000000; font-weight: bold; border: 1px solid #dddddd; padding: 10px; text-align: center; }
+    td { border: 1px solid #dddddd; padding: 10px; text-align: center; }
+    .highlight-yellow { background-color: #fef08a; }
+    .diff-cell { font-weight: bold; color: #ffffff; }
+    .diff-short { background-color: #ef4444 !important; }
+    .diff-excess { background-color: #fb923c !important; }
+    .signature { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 20px; font-size: 13px; color: #666666; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <p>Dear ${recipient_name},</p>
+    <p>Greetings from Electrolyte Solutions..!</p>
+    
+    ${lot.client_name === 'Atomberg' ? `
+      <p>I would like to inform you about discrepancies observed in the PCB received against Challan No. <strong>${challan_no || 'N/A'}</strong>. The following table provides detailed information on the short and excess quantities received:</p>
+    ` : `
+      <p>We have checked Lot No. <strong>${lot.lot_no}</strong> and found some PCB quantity differences (short/excess). Details are shared below. Kindly review and update.</p>
+    `}
+
+    <table>
+      <thead>
+        <tr>
+          <th>Challan No. / Ref</th>
+          <th>Challan Qty</th>
+          <th>Received Qty</th>
+          <th>Diff</th>
+          <th>Discrepancy Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="highlight-yellow">${challan_no || `Lot ${lot.lot_no}`}</td>
+          <td class="highlight-yellow">${qty_sent}</td>
+          <td class="highlight-yellow">${received_qty}</td>
+          <td class="diff-cell ${isShortage ? 'diff-short' : 'diff-excess'}">${isShortage ? `-${diff}` : `+${diff}`}</td>
+          <td class="highlight-yellow">${discrepancyType}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${custom_remarks ? `<p>${custom_remarks}</p>` : `
+      ${lot.client_name === 'Atomberg' ? `
+        <p>Kindly suggest the way forward and would like to invite @CC CWH Mumbai Spare and @Chetan Joshi Sir to visit our facility and cross verify the quantities.</p>
+      ` : `
+        <p>Please let us know if any further information is required from our side</p>
+      `}
+    `}
+
+    <div class="signature">
+      Warm regards,<br>
+      <strong>Electrolyte Solutions Team</strong><br>
+      <span style="font-size: 11px; color: #9ca3af;">Automated Operations Dispatcher</span>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    // Firing Live Email if SMTP credentials are set
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      console.log(`[SMTP] Attempting live email dispatch from ${process.env.EMAIL_USER} to ${recipient_email}...`);
+      await transporter.sendMail({
+        from: `"Electrolyte Solutions" <${process.env.EMAIL_USER}>`,
+        to: recipient_email.trim(),
+        cc: cc_emails ? cc_emails.split(',').map(email => email.trim()) : undefined,
+        subject: subject,
+        html: emailHtml,
+      });
+      console.log('[SMTP] Live email sent successfully!');
+    }
+
+    // Create the scratch/dispatched_emails output directory
+    const outputDir = path.join(__dirname, '../scratch/dispatched_emails');
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const fileName = `email_lot_${lot.lot_no}_${Date.now()}.html`;
+    const filePath = path.join(outputDir, fileName);
+    fs.writeFileSync(filePath, emailHtml, 'utf8');
+
+    // Insert an audit transaction log in the database
+    const remarks = `Discrepancy email dispatched to ${recipient_email} (${recipient_name}) regarding Lot #${lot.lot_no}. File: ${fileName}`;
+    await query(`
+      INSERT INTO lot_transactions (lot_id, transaction_type, actor_id, remarks)
+      VALUES ($1, 'Email Dispatch', $2, $3)
+    `, [lot.id, req.user.id, remarks]);
+
+    res.json({
+      success: true,
+      message: `Discrepancy email simulated successfully! Output saved to scratch/dispatched_emails/${fileName}`,
+      file_path: filePath,
+      file_name: fileName
+    });
+
+  } catch (err) {
+    console.error('Email dispatch error:', err);
+    res.status(500).json({ error: "Failed to dispatch simulated email." });
   }
 });
 
