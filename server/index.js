@@ -16,19 +16,28 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Setup secure live Gmail SMTP transporter (highly configurable via env variables for production hosting)
+// Setup secure live Gmail SMTP transporter forcing IPv4 lookup directly
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.EMAIL_PORT || '465'),
-  secure: process.env.EMAIL_SECURE !== 'false', // defaults to true, set to 'false' if using Port 587
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  getSocket: (options, callback) => {
+    dns.lookup("smtp.gmail.com", { family: 4 }, (err, address) => {
+      if (err) return callback(err);
+      options.host = address;
+      callback(null, false);
+    });
+  },
+  tls: {
+    servername: "smtp.gmail.com" // Forces TLS validation against domain name instead of raw IP address
+  },
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    pass: process.env.EMAIL_PASS,
   },
-  connectionTimeout: 10000, // 10 seconds connection timeout
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
-  socketTimeout: 10000,
-  family: 4 // Forces IPv4 to bypass ENETUNREACH IPv6 routing bugs on Render hosting
+  socketTimeout: 10000
 });
 
 const app = express();
@@ -1847,8 +1856,41 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
 </html>
     `;
 
-    // Firing Live Email if SMTP credentials are set
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    // Firing Live Email via Resend API or SMTP
+    if (process.env.RESEND_API_KEY) {
+      console.log(`[Resend] Attempting live email dispatch via Resend API to ${recipient_email}...`);
+      const resendFrom = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      const toAddresses = recipient_email.split(',').map(email => email.trim()).filter(Boolean);
+      const ccAddresses = cc_emails ? cc_emails.split(',').map(email => email.trim()).filter(Boolean) : undefined;
+      
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: `"Electrolyte Solutions" <${resendFrom}>`,
+          to: toAddresses,
+          cc: ccAddresses && ccAddresses.length > 0 ? ccAddresses : undefined,
+          subject: subject,
+          html: emailHtml
+        })
+      });
+      
+      const responseText = await response.text();
+      let responseData;
+      try {
+        responseData = JSON.parse(responseText);
+      } catch (e) {
+        responseData = { text: responseText };
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Resend API error: ${JSON.stringify(responseData)}`);
+      }
+      console.log('[Resend] Live email sent successfully via Resend API!', responseData);
+    } else if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       console.log(`[SMTP] Attempting live email dispatch from ${process.env.EMAIL_USER} to ${recipient_email}...`);
       await transporter.sendMail({
         from: `"Electrolyte Solutions" <${process.env.EMAIL_USER}>`,
@@ -1886,11 +1928,12 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
       VALUES ($1, 'Email Dispatch', $2, $3)
     `, [lot.id, req.user.id, remarks]);
 
-    const isLiveDispatch = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+    const isLiveDispatch = !!(process.env.RESEND_API_KEY || (process.env.EMAIL_USER && process.env.EMAIL_PASS));
+    const dispatchMethod = process.env.RESEND_API_KEY ? "Resend API" : "SMTP";
     res.json({
       success: true,
       message: isLiveDispatch
-        ? "Discrepancy email dispatched live successfully!"
+        ? `Discrepancy email dispatched live successfully via ${dispatchMethod}!`
         : `Discrepancy email simulated successfully! ${fileWritten ? 'Output saved to scratch/dispatched_emails/' + fileName : 'Local filesystem is read-only, simulation logged.'}`,
       file_path: fileWritten ? filePath : null,
       file_name: fileWritten ? fileName : null
@@ -1904,4 +1947,8 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
 
 app.listen(port, () => {
   console.log(`Electrolyte Solutions API server listening at http://localhost:${port}`);
+  
+  // Diagnostics for SMTP resolution
+  dns.lookup("smtp.gmail.com", { all: true }, console.log);
+  dns.lookup("smtp.gmail.com", { family: 4 }, console.log);
 });
