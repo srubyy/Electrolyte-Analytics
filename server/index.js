@@ -14,11 +14,11 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// Setup secure live Gmail SMTP transporter
+// Setup secure live Gmail SMTP transporter (highly configurable via env variables for production hosting)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+  host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT || '465'),
+  secure: process.env.EMAIL_SECURE !== 'false', // defaults to true, set to 'false' if using Port 587
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
@@ -1854,27 +1854,39 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
     }
 
     // Create the scratch/dispatched_emails output directory
-    const outputDir = path.join(__dirname, '../scratch/dispatched_emails');
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    let fileWritten = false;
+    let fileName = '';
+    let filePath = '';
+
+    try {
+      const outputDir = path.join(__dirname, '../scratch/dispatched_emails');
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+      }
+
+      fileName = `email_lot_${lot.lot_no}_${Date.now()}.html`;
+      filePath = path.join(outputDir, fileName);
+      fs.writeFileSync(filePath, emailHtml, 'utf8');
+      fileWritten = true;
+    } catch (fsErr) {
+      console.warn('[FS Warning] Could not write local email backup (ephemeral or read-only filesystem):', fsErr.message);
     }
 
-    const fileName = `email_lot_${lot.lot_no}_${Date.now()}.html`;
-    const filePath = path.join(outputDir, fileName);
-    fs.writeFileSync(filePath, emailHtml, 'utf8');
-
     // Insert an audit transaction log in the database
-    const remarks = `Discrepancy email dispatched to ${recipient_email} (${recipient_name}) regarding Lot #${lot.lot_no}. File: ${fileName}`;
+    const remarks = `Discrepancy email dispatched to ${recipient_email} (${recipient_name}) regarding Lot #${lot.lot_no}.${fileWritten ? ` File: ${fileName}` : ' (Read-only filesystem: local backup skipped)'}`;
     await query(`
       INSERT INTO lot_transactions (lot_id, transaction_type, actor_id, remarks)
       VALUES ($1, 'Email Dispatch', $2, $3)
     `, [lot.id, req.user.id, remarks]);
 
+    const isLiveDispatch = process.env.EMAIL_USER && process.env.EMAIL_PASS;
     res.json({
       success: true,
-      message: `Discrepancy email simulated successfully! Output saved to scratch/dispatched_emails/${fileName}`,
-      file_path: filePath,
-      file_name: fileName
+      message: isLiveDispatch
+        ? "Discrepancy email dispatched live successfully!"
+        : `Discrepancy email simulated successfully! ${fileWritten ? 'Output saved to scratch/dispatched_emails/' + fileName : 'Local filesystem is read-only, simulation logged.'}`,
+      file_path: fileWritten ? filePath : null,
+      file_name: fileWritten ? fileName : null
     });
 
   } catch (err) {
