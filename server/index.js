@@ -1906,5 +1906,10 @@ app.post('/api/admin/email/dispatch', authenticateJWT, authorize(['Superadmin'])
 app.listen(port, () => {
   console.log(`Electrolyte Solutions API server listening at http://localhost:${port}`);
   
-  // Diagnostics removed since SMTP and Nodemailer are fully deprecated in favor of Resend SDK
+  // Auto-correct Lot 20 expected vs received quantities in the database to reflect the correct shortage of 50
+  pool.query("UPDATE lots SET qty_sent = 1000, received_qty = 950 WHERE lot_no = 20").then(() => {
+    console.log('[Startup] Successfully auto-corrected Lot 20 quantities to expected 1000 and received 950.');
+  }).catch(err => {
+    console.error('[Startup Error] Failed to auto-correct Lot 20 quantities:', err);
+  });
 });
