@@ -2,9 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 // Read configuration from environment or defaults
 const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/electrolyte_db';
@@ -16,16 +19,16 @@ const pool = new pg.Pool({
 async function run() {
   console.log('Starting sequential migration runner...');
   const client = await pool.connect();
-  
+
   try {
     // 1. Create schema_migrations table if not exists
     await client.query(`
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        id SERIAL PRIMARY KEY,
-        migration_name VARCHAR(255) UNIQUE NOT NULL,
-        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+          id SERIAL PRIMARY KEY,
+          migration_name VARCHAR(255) UNIQUE NOT NULL,
+          applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
 
     // 2. Read migration files
     const migrationsDir = path.join(__dirname, 'migrations');
