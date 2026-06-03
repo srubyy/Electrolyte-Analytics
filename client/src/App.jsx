@@ -1639,7 +1639,7 @@ function App() {
                             />
                           </div>
                           
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                               <select value={clientFilter} onChange={e => { setClientFilter(e.target.value); setCurrentStockPage(1); }}>
                                 <option value="">All Clients</option>
@@ -1657,7 +1657,7 @@ function App() {
                             </div>
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
                             <div className="form-group" style={{ marginBottom: 0 }}>
                               <label style={{ fontSize: '0.65rem', marginBottom: 2 }}>From Date</label>
                               <input 
@@ -2119,7 +2119,7 @@ function App() {
                               boxShadow: isActive ? '0 0 10px rgba(255, 212, 0, 0.15)' : 'none'
                             }}
                           >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                               <span style={{ fontSize: '0.7rem', color: isActive ? '#ffd400' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</span>
                               <span 
                                 onClick={(e) => {
