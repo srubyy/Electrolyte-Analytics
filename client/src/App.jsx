@@ -2100,7 +2100,7 @@ function App() {
                     <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <Wrench size={14} /> Interactive 12-Step Pipeline Flow (Click to Select Step)
                     </h3>
-                    <div className="pipeline-step-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
+                    <div className="pipeline-step-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
                       {STEP_NAMES.map((name, index) => {
                         const stepNo = index + 1;
                         const isActive = selectedProductionStep === stepNo;
