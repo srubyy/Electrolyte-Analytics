@@ -200,6 +200,7 @@ body {
   font-weight: 700;
   letter-spacing: -0.5px;
   background: linear-gradient(135deg, #ffffff 0%, #d1d5db 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: flex;
@@ -227,7 +228,8 @@ body {
   gap: 6px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
 }
 
 .badge-success {
