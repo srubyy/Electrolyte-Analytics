@@ -20,16 +20,16 @@ const pool = new pg.Pool({
 async function run() {
   console.log('Starting sequential migration runner...');
   const client = await pool.connect();
-
+  
   try {
     // 1. Create schema_migrations table if not exists
     await client.query(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-          id SERIAL PRIMARY KEY,
-          migration_name VARCHAR(255) UNIQUE NOT NULL,
-          applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id SERIAL PRIMARY KEY,
+        migration_name VARCHAR(255) UNIQUE NOT NULL,
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
     // 2. Read migration files
     const migrationsDir = path.join(__dirname, 'migrations');
