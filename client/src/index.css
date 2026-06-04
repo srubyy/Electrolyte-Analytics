@@ -2,11 +2,14 @@
   font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  font-size: 17.5px; /* Increased root font-size from 16px to 17.5px to scale all rem-based typography for operations terminal visibility */
+  font-size: 17.5px;
+  /* Increased root font-size from 16px to 17.5px to scale all rem-based typography for operations terminal visibility */
 
   color-scheme: dark;
-  color: #f3f4f6; /* var(--oem-text-secondary) style */
-  background-color: #111827; /* var(--oem-dark) */
+  color: #f3f4f6;
+  /* var(--oem-text-secondary) style */
+  background-color: #111827;
+  /* var(--oem-dark) */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -16,17 +19,24 @@
   /* Color Palette matching electrolytesoln.com UI reference */
   --bg-primary: #0b0f19;
   --bg-dark: #111827;
-  --card-bg: rgba(255, 255, 255, 0.05); /* glass overlay */
-  --card-border: rgba(255, 212, 0, 0.12); /* var(--accent-color) soft border */
-  --color-primary: #ffd400; /* Electrolyte Gold Brand Accent */
+  --card-bg: rgba(255, 255, 255, 0.05);
+  /* glass overlay */
+  --card-border: rgba(255, 212, 0, 0.12);
+  /* var(--accent-color) soft border */
+  --color-primary: #ffd400;
+  /* Electrolyte Gold Brand Accent */
   --color-primary-glow: rgba(255, 212, 0, 0.15);
-  --color-warning: #fb923c; /* Amber Rework */
+  --color-warning: #fb923c;
+  /* Amber Rework */
   --color-warning-glow: rgba(251, 146, 60, 0.15);
-  --color-danger: #ef4444; /* Scrap Red */
+  --color-danger: #ef4444;
+  /* Scrap Red */
   --color-danger-glow: rgba(239, 68, 68, 0.15);
-  --color-blue: #38bdf8; /* Sky client accent */
+  --color-blue: #38bdf8;
+  /* Sky client accent */
   --color-blue-glow: rgba(56, 189, 248, 0.15);
-  --text-muted: #9ca3af; /* var(--oem-text-secondary) */
+  --text-muted: #9ca3af;
+  /* var(--oem-text-secondary) */
   --border-radius-lg: 16px;
   --border-radius-md: 12px;
   --shadow-glow: 0 10px 30px rgba(255, 212, 0, 0.15);
@@ -50,13 +60,16 @@ body {
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-dark);
 }
+
 ::-webkit-scrollbar-thumb {
   background: #1f2937;
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #374151;
 }
@@ -88,9 +101,11 @@ body {
 .app-main-content {
   flex: 1;
   width: 100%;
-  max-width: 1650px; /* Increased from 1300px to expand layout and drastically reduce border waste */
+  max-width: 1650px;
+  /* Increased from 1300px to expand layout and drastically reduce border waste */
   margin: 0 auto;
-  padding: 24px 32px 80px 32px; /* Adjusted padding to utilize the screen real estate more beautifully */
+  padding: 24px 32px 80px 32px;
+  /* Adjusted padding to utilize the screen real estate more beautifully */
   display: flex;
   flex-direction: column;
 }
@@ -468,7 +483,9 @@ label {
   letter-spacing: 0.05em;
 }
 
-select, input, textarea {
+select,
+input,
+textarea {
   width: 100%;
   min-width: 0;
   padding: 12px 16px;
@@ -482,10 +499,99 @@ select, input, textarea {
   outline: none;
 }
 
-select:focus, input:focus, textarea:focus {
+select:focus,
+input:focus,
+textarea:focus {
   border-color: var(--color-primary);
   background: rgba(255, 255, 255, 0.06);
   box-shadow: 0 0 0 3px rgba(255, 212, 0, 0.15);
+}
+
+/* Custom Select Component Styles */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius-md);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.custom-select-trigger:hover {
+  border-color: var(--color-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.custom-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  text-align: left;
+}
+
+.custom-select-icon {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.custom-select-icon.open {
+  transform: rotate(180deg);
+  color: var(--color-primary);
+}
+
+.custom-select-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  background: #0b0f19;
+  border: 1px solid rgba(255, 212, 0, 0.12);
+  border-radius: var(--border-radius-md);
+  z-index: 10000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-select-option {
+  padding: 12px 16px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  word-break: break-word;
+  white-space: normal;
+  text-align: left;
+}
+
+.custom-select-option:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.custom-select-option.selected {
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+  font-weight: 600;
+  border-left: 3px solid var(--color-primary);
+  padding-left: 13px;
 }
 
 /* Gamified Leaderboard */
@@ -577,10 +683,13 @@ select:focus, input:focus, textarea:focus {
 
 /* Animations */
 @keyframes pulse-danger {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.85;
     transform: scale(0.98);
@@ -593,7 +702,8 @@ select:focus, input:focus, textarea:focus {
   font-size: 0.875rem;
   font-weight: 700;
   padding: 14px 20px;
-  border-radius: 45px; /* rounded pill style as seen in current website references */
+  border-radius: 45px;
+  /* rounded pill style as seen in current website references */
   border: none;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -644,9 +754,11 @@ select:focus, input:focus, textarea:focus {
   .widescreen-grid {
     grid-template-columns: 1.4fr 1fr;
   }
+
   .widescreen-grid.equal-cols {
     grid-template-columns: 1fr 1fr;
   }
+
   .widescreen-grid.reverse {
     grid-template-columns: 1fr 1.4fr;
   }
@@ -674,7 +786,8 @@ select:focus, input:focus, textarea:focus {
   }
 
   /* ---- Page section headers: stack title + actions vertically ---- */
-  .app-header, .view-header {
+  .app-header,
+  .view-header {
     flex-direction: row !important;
     align-items: center !important;
     justify-content: space-between;
@@ -687,7 +800,9 @@ select:focus, input:focus, textarea:focus {
     font-size: clamp(1.15rem, 4vw, 1.5rem);
   }
 
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-size: clamp(1rem, 4.5vw, 1.25rem);
   }
 
@@ -732,7 +847,7 @@ select:focus, input:focus, textarea:focus {
     scroll-snap-type: x mandatory;
   }
 
-  .pipeline-step-grid > div {
+  .pipeline-step-grid>div {
     min-width: 120px;
     flex-shrink: 0;
     scroll-snap-align: start;
@@ -761,7 +876,9 @@ select:focus, input:focus, textarea:focus {
   }
 
   /* ---- Forms: tighter inputs ---- */
-  select, input, textarea {
+  select,
+  input,
+  textarea {
     padding: 10px 12px;
     font-size: 0.85rem;
   }
@@ -818,7 +935,13 @@ select:focus, input:focus, textarea:focus {
   }
 
   /* ---- Long text handling ---- */
-  h1, h2, h3, h4, span, div, p {
+  h1,
+  h2,
+  h3,
+  h4,
+  span,
+  div,
+  p {
     word-break: break-word;
     overflow-wrap: break-word;
   }
@@ -853,4 +976,17 @@ select:focus, input:focus, textarea:focus {
 /* Bottom nav should be fixed on all mobile sizes */
 .bottom-nav {
   position: fixed;
+}
+
+.form-group select option {
+  color: #ffffff !important;
+  background: #111827 !important;
+}
+
+@media (max-width: 767px) {
+  select {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
