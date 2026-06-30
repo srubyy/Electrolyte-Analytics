@@ -2,10 +2,10 @@
   "name": "electrolyte-solutions",
   "version": "1.0.0",
   "description": "Fullstack PCB Refurbishment Mobile Web App",
-  "main": "server/index.js",
+  "main": "backend/server.js",
   "scripts": {
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
-    "server": "node server/index.js",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix client",
+    "server": "node backend/server.js",
     "client": "npm run dev --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\""
   },
