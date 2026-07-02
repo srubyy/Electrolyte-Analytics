@@ -29,6 +29,7 @@ client/dist/
 # System Files
 .DS_Store
 Thumbs.db
+Icon?
 
 # Log files
 *.log

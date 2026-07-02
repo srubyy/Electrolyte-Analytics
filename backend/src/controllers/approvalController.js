@@ -1,0 +1,246 @@
+import pool, { isFallback, query } from '../config/db.js';
+import { PendingLog } from '../models/PendingLog.js';
+import { Panel } from '../models/Panel.js';
+import * as memoryDb from '../services/memoryDb.js';
+
+const STEP_NAMES = [
+  "Inward",
+  "Segregation",
+  "Programming",
+  "1st Testing",
+  "Debug",
+  "Entry",
+  "Cleaning",
+  "QC After Cleaning",
+  "Marking & Coating",
+  "Final Testing",
+  "Packing",
+  "Final Entry"
+];
+
+export const getApprovals = async (req, res) => {
+  try {
+    let approvals = [];
+    if (isFallback()) {
+      approvals = memoryDb.getAllPendingLogs()
+        .filter(row => ['Pending Team Lead', 'Pending Manager'].includes(row.approval_status))
+        .sort((a, b) => a.id - b.id);
+    } else {
+      const approvalsRes = await query(`
+        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name
+        FROM pending_logs pl
+        JOIN panels p ON pl.panel_id = p.id
+        JOIN users u ON pl.engineer_id = u.id
+        LEFT JOIN users tl ON pl.team_lead_id = tl.id
+        WHERE pl.approval_status IN ('Pending Team Lead', 'Pending Manager')
+        ORDER BY pl.id ASC
+      `, [], req.user);
+      approvals = approvalsRes.rows;
+    }
+
+    const result = approvals.map(row => ({
+      ...row,
+      step_name: STEP_NAMES[row.step_no - 1]
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error('Approvals fetch error:', err);
+    res.status(500).json({ error: "Failed to fetch approvals." });
+  }
+};
+
+export const tlApprove = async (req, res) => {
+  const { pending_log_id } = req.body;
+  if (!pending_log_id) {
+    return res.status(400).json({ error: "Missing pending_log_id." });
+  }
+
+  try {
+    if (isFallback()) {
+      const log = memoryDb.updatePendingLogStatus(Number(pending_log_id), 'Pending Manager', req.user.id, 'teamlead');
+      if (!log) {
+        return res.status(404).json({ error: "Pending approval log not found or already advanced." });
+      }
+      return res.json({ success: true, log });
+    }
+
+    const updateRes = await query(`
+      UPDATE pending_logs 
+      SET approval_status = 'Pending Manager', team_lead_id = $1, team_lead_approved_at = NOW()
+      WHERE id = $2 AND approval_status = 'Pending Team Lead'
+      RETURNING *
+    `, [req.user.id, pending_log_id], req.user);
+
+    if (updateRes.rowCount === 0) {
+      return res.status(404).json({ error: "Pending approval log not found or already advanced." });
+    }
+
+    res.json({ success: true, log: updateRes.rows[0] });
+  } catch (err) {
+    console.error('TL approve error:', err);
+    res.status(500).json({ error: "Server error during Team Lead approval." });
+  }
+};
+
+export const managerApprove = async (req, res) => {
+  const { pending_log_id } = req.body;
+  if (!pending_log_id) {
+    return res.status(400).json({ error: "Missing pending_log_id." });
+  }
+
+  const useTx = !isFallback();
+  const txClient = useTx ? await pool.connect() : null;
+
+  try {
+    if (useTx) await txClient.query('BEGIN');
+
+    // Fetch pending log details
+    let pLog = null;
+    if (isFallback()) {
+      pLog = memoryDb.tables.pending_logs.find(pl => pl.id === Number(pending_log_id) && pl.approval_status === 'Pending Manager');
+    } else {
+      const logRes = await txClient.query(`
+        SELECT * FROM pending_logs 
+        WHERE id = $1 AND approval_status = 'Pending Manager'
+      `, [pending_log_id]);
+      if (logRes.rowCount > 0) pLog = logRes.rows[0];
+    }
+
+    if (!pLog) {
+      if (useTx) {
+        await txClient.query('ROLLBACK');
+        txClient.release();
+      }
+      return res.status(404).json({ error: "Pending approval log not found or already committed." });
+    }
+
+    // 1. Insert into committed panel_logs
+    await Panel.createLog({
+      panel_id: pLog.panel_id,
+      step_no: pLog.step_no,
+      engineer_id: pLog.engineer_id,
+      status: pLog.status,
+      remark: pLog.remark
+    }, txClient);
+
+    // 2. Update panel state depending on verdict
+    let nextStepNo = pLog.step_no;
+    let nextStatus = 'Repairable';
+    let scrapReason = null;
+
+    if (pLog.status === 'Scrap') {
+      nextStatus = 'Scrap';
+      scrapReason = pLog.remark || 'Scrapped during repair';
+
+      if (useTx) {
+        await txClient.query(`
+          UPDATE panels 
+          SET status = $1, scrap_reason = $2, assigned_engineer_id = $3, updated_at = NOW()
+          WHERE id = $4
+        `, [nextStatus, scrapReason, pLog.engineer_id, pLog.panel_id]);
+      } else {
+        const p = memoryDb.tables.panels.find(p => p.id === pLog.panel_id);
+        if (p) {
+          p.status = nextStatus;
+          p.scrap_reason = scrapReason;
+          p.assigned_engineer_id = pLog.engineer_id;
+          p.updated_at = new Date().toISOString();
+        }
+      }
+    } else if (pLog.status === 'Faulty') {
+      if (useTx) {
+        await txClient.query(`
+          UPDATE panels 
+          SET assigned_engineer_id = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [pLog.engineer_id, pLog.panel_id]);
+      } else {
+        const p = memoryDb.tables.panels.find(p => p.id === pLog.panel_id);
+        if (p) {
+          p.assigned_engineer_id = pLog.engineer_id;
+          p.updated_at = new Date().toISOString();
+        }
+      }
+    } else if (pLog.status === 'OK') {
+      nextStepNo = pLog.step_no + 1;
+
+      if (useTx) {
+        await txClient.query(`
+          UPDATE panels 
+          SET current_step = $1, assigned_engineer_id = $2, updated_at = NOW()
+          WHERE id = $3
+        `, [nextStepNo, pLog.engineer_id, pLog.panel_id]);
+      } else {
+        const p = memoryDb.tables.panels.find(p => p.id === pLog.panel_id);
+        if (p) {
+          p.current_step = nextStepNo;
+          p.assigned_engineer_id = pLog.engineer_id;
+          p.updated_at = new Date().toISOString();
+        }
+      }
+    }
+
+    // 3. Mark pending log as Approved
+    if (isFallback()) {
+      memoryDb.updatePendingLogStatus(pLog.id, 'Approved', req.user.id, 'manager');
+    } else {
+      await txClient.query(`
+        UPDATE pending_logs 
+        SET approval_status = 'Approved', manager_id = $1, manager_approved_at = NOW()
+        WHERE id = $2
+      `, [req.user.id, pending_log_id]);
+    }
+
+    if (useTx) {
+      await txClient.query('COMMIT');
+      txClient.release();
+    }
+
+    res.json({ success: true, current_step: nextStepNo, status: nextStatus });
+
+  } catch (err) {
+    if (useTx && txClient) {
+      await txClient.query('ROLLBACK');
+      txClient.release();
+    }
+    console.error('Manager approve error:', err);
+    res.status(500).json({ error: "Failed to finalize quality clearance transaction." });
+  }
+};
+
+export const rejectLog = async (req, res) => {
+  const { pending_log_id, rejection_reason } = req.body;
+  if (!pending_log_id || !rejection_reason) {
+    return res.status(400).json({ error: "Pending log ID and rejection reason are required." });
+  }
+
+  try {
+    const expectedStatus = req.user.role === 'Team Lead' ? 'Pending Team Lead' : 'Pending Manager';
+
+    if (isFallback()) {
+      const log = memoryDb.tables.pending_logs.find(pl => pl.id === Number(pending_log_id) && pl.approval_status === expectedStatus);
+      if (!log) {
+        return res.status(404).json({ error: "Pending approval log not found or already processed for your role." });
+      }
+      memoryDb.updatePendingLogStatus(log.id, 'Rejected', req.user.id, req.user.role === 'Team Lead' ? 'teamlead' : 'manager', rejection_reason);
+      return res.json({ success: true, log });
+    }
+
+    const updateRes = await query(`
+      UPDATE pending_logs 
+      SET approval_status = 'Rejected', rejection_reason = $1
+      WHERE id = $2 AND approval_status = $3
+      RETURNING *
+    `, [rejection_reason, pending_log_id, expectedStatus], req.user);
+
+    if (updateRes.rowCount === 0) {
+      return res.status(404).json({ error: "Pending approval log not found or already processed for your role." });
+    }
+
+    res.json({ success: true, log: updateRes.rows[0] });
+  } catch (err) {
+    console.error('Rejection error:', err);
+    res.status(500).json({ error: "Server error during log rejection." });
+  }
+};

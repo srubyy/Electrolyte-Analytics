@@ -1,8 +1,8 @@
 import os
 
-# Paths
-server_dir = "/Users/srutibaliga/Documents/Projects/Electrolyte/server"
-seed_sql_path = os.path.join(server_dir, "seed_new.sql")
+# Dynamically resolve directory relative to this script file
+script_dir = os.path.dirname(os.path.abspath(__file__))
+seed_sql_path = os.path.join(script_dir, "seed_new.sql")
 
 print("Generating seed_new.sql dynamically with normalized schema relationships...")
 
