@@ -10,7 +10,7 @@ import RedispatchModal from '../../features/lots/RedispatchModal';
 import TransactionHistoryModal from '../../features/lots/TransactionHistoryModal';
 import EmailModal from '../../features/lots/EmailModal';
 
-const LotsPage = ({ showToast }) => {
+const LotsPage = ({ selectedLotNo, showToast }) => {
   const { user, apiFetch } = useAuth();
   
   // Data states
@@ -370,9 +370,13 @@ const LotsPage = ({ showToast }) => {
     showToast(`Report downloaded for Lot ${lotNo}!`);
   };
 
+  const filteredStock = Array.isArray(stockData)
+    ? (selectedLotNo ? stockData.filter(l => l.lot_no === parseInt(selectedLotNo)) : stockData)
+    : [];
+
   const exportAllLots = () => {
     const headers = ["Lot Number", "Batch Code", "Pixel Pitch", "Client", "Sent Quantity", "Received Quantity", "Dispatched", "Scrap", "Available", "Status"];
-    const rows = stockData.map(l => [l.lot_no, l.batch_no, l.pixel_pitch, l.client_name, l.qty_sent, l.received_qty, l.dispatched_qty, l.return_qty, l.available, l.status]);
+    const rows = filteredStock.map(l => [l.lot_no, l.batch_no, l.pixel_pitch, l.client_name, l.qty_sent, l.received_qty, l.dispatched_qty, l.return_qty, l.available, l.status]);
     downloadCSV(`ES_Cumulative_Lots_Report.csv`, headers, rows);
     showToast("Cumulative lots summary downloaded!");
   };
@@ -380,8 +384,8 @@ const LotsPage = ({ showToast }) => {
   // Pagination limits
   const indexOfLastLot = currentStockPage * lotsPerPage;
   const indexOfFirstLot = indexOfLastLot - lotsPerPage;
-  const paginatedLots = stockData.slice(indexOfFirstLot, indexOfLastLot);
-  const totalStockPages = Math.ceil(stockData.length / lotsPerPage);
+  const paginatedLots = filteredStock.slice(indexOfFirstLot, indexOfLastLot);
+  const totalStockPages = Math.ceil(filteredStock.length / lotsPerPage);
 
   return (
     <div>
@@ -418,20 +422,20 @@ const LotsPage = ({ showToast }) => {
       <div className="metrics-grid" style={{ marginBottom: 20 }}>
         <div className="metric-card glass-panel blue">
           <span className="metric-label">Total Lots</span>
-          <h3 className="metric-val">{stockData.length}</h3>
+          <h3 className="metric-val">{filteredStock.length}</h3>
         </div>
         <div className="metric-card glass-panel">
           <span className="metric-label">Total Received</span>
-          <h3 className="metric-val">{stockData.reduce((sum, l) => sum + l.received_qty, 0)}</h3>
+          <h3 className="metric-val">{filteredStock.reduce((sum, l) => sum + l.received_qty, 0)}</h3>
         </div>
         <div className="metric-card glass-panel success">
           <span className="metric-label">Dispatched OK</span>
-          <h3 className="metric-val">{stockData.reduce((sum, l) => sum + l.dispatched_qty, 0)}</h3>
+          <h3 className="metric-val">{filteredStock.reduce((sum, l) => sum + l.dispatched_qty, 0)}</h3>
         </div>
         <div className="metric-card glass-panel warning">
           <span className="metric-label">Total Available</span>
           <h3 className="metric-val" style={{ color: '#f59e0b' }}>
-            {stockData.reduce((sum, l) => sum + l.available, 0)}
+            {filteredStock.reduce((sum, l) => sum + l.available, 0)}
           </h3>
         </div>
       </div>
@@ -517,10 +521,10 @@ const LotsPage = ({ showToast }) => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
                 {clientsList.map(client => {
-                  const clientLots = stockData.filter(l => l.client_name === client.name);
+                  const clientLots = filteredStock.filter(l => l.client_name === client.name);
                   const totalReceived = clientLots.reduce((sum, l) => sum + l.received_qty, 0);
                   const totalAvailable = clientLots.reduce((sum, l) => sum + l.available, 0);
-                  const progressPct = stockData.length > 0 ? Math.round((clientLots.length / stockData.length) * 100) : 0;
+                  const progressPct = filteredStock.length > 0 ? Math.round((clientLots.length / filteredStock.length) * 100) : 0;
                   
                   if (totalReceived === 0) return null;
                   

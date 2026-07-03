@@ -2,15 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, RefreshCw, AlertTriangle, TrendingUp, History } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const DashboardPage = ({ setView, showToast }) => {
+const DashboardPage = ({ setView, selectedLotNo, showToast }) => {
   const { user, apiFetch } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
-  const [lotFilter, setLotFilter] = useState('');
   const [engineers, setEngineers] = useState([]);
 
   const fetchDashboard = async () => {
     try {
-      const url = lotFilter ? `/api/dashboard?lot_no=${lotFilter}` : '/api/dashboard';
+      const url = selectedLotNo ? `/api/dashboard?lot_no=${selectedLotNo}` : '/api/dashboard';
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -36,7 +35,7 @@ const DashboardPage = ({ setView, showToast }) => {
   useEffect(() => {
     fetchDashboard();
     fetchEngineers();
-  }, [lotFilter]);
+  }, [selectedLotNo]);
 
   // Auto-refresh stats every 15s
   useEffect(() => {
@@ -44,7 +43,7 @@ const DashboardPage = ({ setView, showToast }) => {
       fetchDashboard();
     }, 15000);
     return () => clearInterval(timer);
-  }, [lotFilter]);
+  }, [selectedLotNo]);
 
   return (
     <div>
@@ -163,20 +162,7 @@ const DashboardPage = ({ setView, showToast }) => {
 
         {/* Right Column: Factory Lot Filter & Shop Floor Pipeline Queue */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Lot Filter Dropdown */}
-          <div>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 12, color: 'var(--color-primary)' }}>Visual Filter</h3>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label>Filter Dashboard by Lot</label>
-              <select value={lotFilter} onChange={(e) => setLotFilter(e.target.value)}>
-                <option value="">All Lots (Global Factory View)</option>
-                <option value="17">Lot 17 (DX128 • P5.9)</option>
-                <option value="18">Lot 18 (DX128 • P5.9)</option>
-                <option value="19">Lot 19 (DX128 • P5.9)</option>
-                <option value="20">Lot 20 (DX109 • P5.9)</option>
-              </select>
-            </div>
-          </div>
+
 
           {/* Step-wise Pending Tracker List */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -192,6 +178,7 @@ const DashboardPage = ({ setView, showToast }) => {
                   onClick={() => {
                     if (step.count > 0) {
                       setView('repair');
+                      showToast(`Navigated to Workflows! Select Step ${step.step_no} to view logs.`);
                     }
                   }}
                   style={{ cursor: step.count > 0 ? 'pointer' : 'default' }}

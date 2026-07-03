@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import ApprovalsQueueItem from '../../features/reports/ApprovalsQueueItem';
 import RejectionModal from '../../features/reports/RejectionModal';
 
-const ReportsPage = ({ showToast }) => {
+const ReportsPage = ({ selectedLotNo, showToast }) => {
   const { user, apiFetch } = useAuth();
   
   const [approvalsData, setApprovalsData] = useState([]);
@@ -103,6 +103,10 @@ const ReportsPage = ({ showToast }) => {
       showToast('Server connection error.', 'danger');
     }
   };
+
+  const filteredApprovals = Array.isArray(approvalsData)
+    ? (selectedLotNo ? approvalsData.filter(item => item.lot_no === parseInt(selectedLotNo)) : approvalsData)
+    : [];
 
   return (
     <div>
@@ -204,15 +208,27 @@ const ReportsPage = ({ showToast }) => {
               </h4>
               <span style={{ fontSize: '0.62rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>RISK HIGH</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.7rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
-                <span style={{ fontFamily: 'monospace', color: '#fca5a5', fontWeight: 700 }}>Lot 18 (DX128) - Batch 1</span>
-                <span style={{ color: '#ef4444', fontWeight: 800 }}>42 mins ago</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'var(--card-bg)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>Lot 19 (DX128) - Batch 3</span>
-                <span style={{ color: 'var(--text-muted)' }}>18 mins ago</span>
-              </div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.7rem' }}>
+              {(!selectedLotNo || selectedLotNo === '18' || selectedLotNo === '19') ? (
+                <>
+                  {(!selectedLotNo || selectedLotNo === '18') && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
+                      <span style={{ fontFamily: 'monospace', color: '#fca5a5', fontWeight: 700 }}>Lot 18 (DX128) - Batch 1</span>
+                      <span style={{ color: '#ef4444', fontWeight: 800 }}>42 mins ago</span>
+                    </div>
+                  )}
+                  {(!selectedLotNo || selectedLotNo === '19') && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'var(--card-bg)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
+                      <span style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>Lot 19 (DX128) - Batch 3</span>
+                      <span style={{ color: 'var(--text-muted)' }}>18 mins ago</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 10px', background: 'var(--card-bg)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
+                  No SLA breach risks for Lot {selectedLotNo}.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -220,11 +236,11 @@ const ReportsPage = ({ showToast }) => {
         {/* Right Column: Clearance Queue */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8 }}>
-            Pending Clearance Queue ({approvalsData.length})
+            Pending Clearance Queue ({filteredApprovals.length})
           </h3>
 
           <div style={{ flex: 1, overflowY: 'auto', maxHeight: '420px', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {approvalsData.length === 0 ? (
+            {filteredApprovals.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
                 <CheckCircle size={36} color='var(--color-primary)' style={{ display: 'block', margin: '0 auto 12px auto', opacity: 0.8 }} />
                 <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>Clearance Queue Clear</h3>
@@ -233,7 +249,7 @@ const ReportsPage = ({ showToast }) => {
                 </p>
               </div>
             ) : (
-              approvalsData.map(log => (
+              filteredApprovals.map(log => (
                 <ApprovalsQueueItem 
                   key={log.id} 
                   log={log} 

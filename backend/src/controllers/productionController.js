@@ -3,10 +3,12 @@ import { Lot } from '../models/Lot.js';
 import * as memoryDb from '../services/memoryDb.js';
 
 // Helper to get step-wise aggregates (committed + pending logs)
-const getStepSum = async (lotId, stepNo, fields) => {
+const getStepSum = async (lotId, stepNo, fields, includePending = true) => {
   if (isFallback()) {
     const comLogs = memoryDb.tables.production_logs.filter(l => l.lot_id === lotId && l.step_no === stepNo);
-    const penLogs = memoryDb.tables.pending_production_logs.filter(l => l.lot_id === lotId && l.step_no === stepNo && !['Approved', 'Rejected'].includes(l.approval_status));
+    const penLogs = includePending
+      ? memoryDb.tables.pending_production_logs.filter(l => l.lot_id === lotId && l.step_no === stepNo && !['Approved', 'Rejected'].includes(l.approval_status))
+      : [];
 
     const result = {};
     fields.forEach(f => {
@@ -25,12 +27,15 @@ const getStepSum = async (lotId, stepNo, fields) => {
   const selectCommitted = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
   const comRes = await query(`SELECT ${selectCommitted} FROM production_logs WHERE lot_id = $1 AND step_no = $2`, [lotId, stepNo]);
 
-  const selectPending = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
-  const penRes = await query(`SELECT ${selectPending} FROM pending_production_logs WHERE lot_id = $1 AND step_no = $2 AND approval_status NOT IN ('Approved', 'Rejected')`, [lotId, stepNo]);
+  let penRes = { rows: [{}] };
+  if (includePending) {
+    const selectPending = fields.map(f => `COALESCE(SUM((step_data->>'${f}')::integer), 0) AS ${f}`).join(', ');
+    penRes = await query(`SELECT ${selectPending} FROM pending_production_logs WHERE lot_id = $1 AND step_no = $2 AND approval_status NOT IN ('Approved', 'Rejected')`, [lotId, stepNo]);
+  }
 
   const result = {};
   fields.forEach(f => {
-    result[f] = parseInt(comRes.rows[0][f] || 0) + parseInt(penRes.rows[0][f] || 0);
+    result[f] = parseInt(comRes.rows[0][f] || 0) + parseInt(penRes.rows[0]?.[f] || 0);
   });
   return result;
 };
@@ -156,8 +161,7 @@ export const logProduction = async (req, res) => {
     if (!lot) {
       return res.status(404).json({ error: "Selected lot does not exist." });
     }
-    const step1 = await getStepSum(lotId, 1, ['qty_received']);
-    const received_qty = step1.qty_received > 0 ? step1.qty_received : lot.received_qty;
+    const received_qty = lot.received_qty;
 
     // Checksums Validation
     if (stepNo === 2) {
@@ -391,11 +395,11 @@ export const managerApproveLog = async (req, res) => {
       if (isFallback()) {
         const lot = memoryDb.tables.lots.find(l => l.id === pLog.lot_id);
         if (lot) {
-          lot.received_qty = recCount;
-          lot.qty_sent = expectedCount;
+          lot.received_qty = (lot.received_qty || 0) + recCount;
+          lot.qty_sent = (lot.qty_sent || 0) + expectedCount;
         }
       } else {
-        await txClient.query('UPDATE lots SET received_qty = $1, qty_sent = $2 WHERE id = $3', [recCount, expectedCount, pLog.lot_id]);
+        await txClient.query('UPDATE lots SET received_qty = received_qty + $1, qty_sent = qty_sent + $2 WHERE id = $3', [recCount, expectedCount, pLog.lot_id]);
       }
     }
 
@@ -483,32 +487,29 @@ export const getLotProductionStats = async (req, res) => {
       return res.status(404).json({ error: "Lot not found." });
     }
 
-    const step1Sum = await getStepSum(lotId, 1, ['qty_received']);
-    const effectiveReceivedQty = step1Sum.qty_received > 0 ? step1Sum.qty_received : lot.received_qty;
-
     const stats = {
       lot_no: lot.lot_no,
       batch_no: lot.batch_no,
       pixel_pitch: lot.pixel_pitch,
       qty_sent: lot.qty_sent,
-      received_qty: effectiveReceivedQty,
+      received_qty: lot.received_qty,
       dispatched_qty: lot.dispatched_qty,
       steps: {}
     };
 
     // Pull aggregates sequentially for the 12 steps
-    stats.steps[1] = { inward: effectiveReceivedQty, expected: lot.qty_sent, shortage: lot.qty_sent - effectiveReceivedQty };
-    stats.steps[2] = await getStepSum(lotId, 2, ['repairable_qty', 'scrap_qty']);
-    stats.steps[3] = await getStepSum(lotId, 3, ['code_ok', 'code_not_ok']);
-    stats.steps[4] = await getStepSum(lotId, 4, ['qty_passed', 'qty_failed']);
-    stats.steps[5] = await getStepSum(lotId, 5, ['debug_ok', 'critical_qty', 'scrap_qty']);
-    stats.steps[6] = await getStepSum(lotId, 6, ['entry_count']);
-    stats.steps[7] = await getStepSum(lotId, 7, ['qty_cleaned', 'qc_reject']);
-    stats.steps[8] = await getStepSum(lotId, 8, ['qty_passed', 'qty_failed']);
-    stats.steps[9] = await getStepSum(lotId, 9, ['qty_coated']);
-    stats.steps[10] = await getStepSum(lotId, 10, ['qty_passed', 'qty_failed']);
-    stats.steps[11] = await getStepSum(lotId, 11, ['bubble_packed', 'box_packed']);
-    stats.steps[12] = await getStepSum(lotId, 12, ['entry_count']);
+    stats.steps[1] = { inward: lot.received_qty, expected: lot.qty_sent, shortage: lot.qty_sent - lot.received_qty };
+    stats.steps[2] = await getStepSum(lotId, 2, ['repairable_qty', 'scrap_qty'], false);
+    stats.steps[3] = await getStepSum(lotId, 3, ['code_ok', 'code_not_ok'], false);
+    stats.steps[4] = await getStepSum(lotId, 4, ['qty_passed', 'qty_failed'], false);
+    stats.steps[5] = await getStepSum(lotId, 5, ['debug_ok', 'critical_qty', 'scrap_qty'], false);
+    stats.steps[6] = await getStepSum(lotId, 6, ['entry_count'], false);
+    stats.steps[7] = await getStepSum(lotId, 7, ['qty_cleaned', 'qc_reject'], false);
+    stats.steps[8] = await getStepSum(lotId, 8, ['qty_passed', 'qty_failed'], false);
+    stats.steps[9] = await getStepSum(lotId, 9, ['qty_coated'], false);
+    stats.steps[10] = await getStepSum(lotId, 10, ['qty_passed', 'qty_failed'], false);
+    stats.steps[11] = await getStepSum(lotId, 11, ['bubble_packed', 'box_packed'], false);
+    stats.steps[12] = await getStepSum(lotId, 12, ['entry_count'], false);
 
     res.json(stats);
   } catch (err) {

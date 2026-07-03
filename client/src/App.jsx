@@ -16,9 +16,37 @@ import EngineersPage from './pages/Engineers/EngineersPage';
 import SettingsPage from './pages/Settings/SettingsPage';
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, apiFetch } = useAuth();
   const [view, setView] = useState('dashboard');
+  const [searchLotNo, setSearchLotNo] = useState('');
+  const [searchSrNo, setSearchSrNo] = useState('');
+  const [lots, setLots] = useState([]);
+  const [globalLotNo, setGlobalLotNo] = useState('');
   const [notification, setNotification] = useState(null);
+
+  const fetchLotsList = async () => {
+    try {
+      const res = await apiFetch('/api/stock');
+      if (res.ok) {
+        const data = await res.json();
+        setLots(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchLotsList();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (globalLotNo) {
+      setSearchLotNo(globalLotNo);
+    }
+  }, [globalLotNo]);
 
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
@@ -69,23 +97,93 @@ function App() {
       {/* Main Container Area */}
       <main className="app-main-content">
         <ToastNotification notification={notification} />
+
+        {/* Global Lot Selection Dropdown */}
+        {user && (
+          <div className="global-lot-selector-card" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 18px',
+            background: 'rgba(255, 212, 0, 0.02)',
+            border: '1px solid var(--card-border)',
+            borderRadius: 10,
+            marginBottom: 18,
+            gap: 12,
+            flexWrap: 'wrap',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                display: 'inline-block',
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: globalLotNo ? 'var(--color-primary)' : '#475569',
+                boxShadow: globalLotNo ? '0 0 10px var(--color-primary)' : 'none'
+              }}></span>
+              <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                Active Factory Scope:
+              </span>
+              <strong style={{ fontSize: '0.82rem', color: '#fff' }}>
+                {globalLotNo ? `Lot ${globalLotNo}` : 'All Lots (Global Factory View)'}
+              </strong>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <label htmlFor="global-lot-select" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, fontWeight: 600 }}>Filter by Lot:</label>
+              <select
+                id="global-lot-select"
+                value={globalLotNo}
+                onChange={(e) => setGlobalLotNo(e.target.value)}
+                style={{
+                  padding: '8px 16px',
+                  background: 'var(--input-bg)',
+                  border: '1px solid var(--card-border)',
+                  color: 'var(--text-main)',
+                  borderRadius: 8,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  minWidth: '180px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s'
+                }}
+              >
+                <option value="">All Lots (Global View)</option>
+                {Array.isArray(lots) && lots.map(l => (
+                  <option key={l.id} value={l.lot_no}>Lot {l.lot_no} ({l.client_name || l.client_id})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         
         {view === 'dashboard' && (
           <DashboardPage 
             setView={setView} 
+            selectedLotNo={globalLotNo}
+            setSearchLotNo={setSearchLotNo}
+            setSearchSrNo={setSearchSrNo}
             showToast={showToast} 
           />
         )}
         {view === 'stock' && (
-          <LotsPage showToast={showToast} />
+          <LotsPage 
+            selectedLotNo={globalLotNo}
+            showToast={showToast} 
+          />
         )}
         {view === 'repair' && (
           <WorkflowsPage 
+            selectedLotNo={globalLotNo}
             showToast={showToast} 
           />
         )}
         {view === 'approvals' && user.role !== 'Employee' && (
-          <ReportsPage showToast={showToast} />
+          <ReportsPage 
+            selectedLotNo={globalLotNo}
+            showToast={showToast} 
+          />
         )}
         {view === 'leaderboard' && (
           <EngineersPage showToast={showToast} />

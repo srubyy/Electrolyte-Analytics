@@ -6,7 +6,7 @@ import StationChecklist from '../../features/workflows/StationChecklist';
 import PresetRemarksSelect from '../../features/workflows/PresetRemarksSelect';
 import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineIndicator';
 
-const WorkflowsPage = ({ showToast }) => {
+const WorkflowsPage = ({ selectedLotNo, showToast }) => {
   const { user, apiFetch } = useAuth();
 
   // Data states from parent or loaded locally
@@ -28,6 +28,7 @@ const WorkflowsPage = ({ showToast }) => {
   const [esdWristStrap, setEsdWristStrap] = useState(false);
   const [ionizerOn, setIonizerOn] = useState(false);
   const [esdMatGrounded, setEsdMatGrounded] = useState(false);
+
 
   // Step Detail Modal States
   const [showStepDetailModal, setShowStepDetailModal] = useState(false);
@@ -59,7 +60,7 @@ const WorkflowsPage = ({ showToast }) => {
       if (res.ok) {
         const data = await res.json();
         setStockData(data);
-        if (data.length > 0 && !productionLotId) {
+        if (data.length > 0 && !productionLotId && !selectedLotNo) {
           setProductionLotId(data[0].id);
         }
       }
@@ -119,16 +120,34 @@ const WorkflowsPage = ({ showToast }) => {
     fetchStock();
   }, []);
 
+  useEffect(() => {
+    if (stockData.length > 0) {
+      if (selectedLotNo) {
+        const lot = stockData.find(l => l.lot_no === parseInt(selectedLotNo));
+        if (lot) {
+          setProductionLotId(lot.id);
+          setAssignForm(prev => ({ ...prev, lot_no: selectedLotNo }));
+        }
+      } else {
+        setProductionLotId('');
+        setAssignForm(prev => ({ ...prev, lot_no: '' }));
+      }
+    }
+  }, [selectedLotNo, stockData]);
+
   // Poll pending logs reactively
   useEffect(() => {
     if (user) {
       fetchPendingProductionLogs(selectedProductionStep);
+      fetchProductionLogs(productionLotId, selectedProductionStep);
       if (productionLotId) {
-        fetchProductionLogs(productionLotId, selectedProductionStep);
         fetchLotProductionStats(productionLotId);
+      } else {
+        setLotProductionStats(null);
       }
     }
   }, [user, selectedProductionStep, productionLotId]);
+
 
   // Submit Step Log
   const handleProductionLogSubmit = async (e) => {
@@ -252,6 +271,10 @@ const WorkflowsPage = ({ showToast }) => {
     }
   };
 
+  const filteredPendingLogs = Array.isArray(pendingProductionLogs)
+    ? (selectedLotNo ? pendingProductionLogs.filter(p => p.lot_no === parseInt(selectedLotNo)) : pendingProductionLogs)
+    : [];
+
   return (
     <div>
       <div className="app-header">
@@ -269,7 +292,7 @@ const WorkflowsPage = ({ showToast }) => {
             style={{ width: 'auto', minWidth: 200, padding: '6px 12px', background: 'var(--input-bg)', color: 'var(--text-main)', borderRadius: 8, border: '1px solid var(--card-border)', cursor: 'pointer' }}
           >
             <option value="">-- Select Active Lot --</option>
-            {stockData.map(l => (
+            {Array.isArray(stockData) && stockData.map(l => (
               <option key={l.id} value={l.id}>Lot {l.lot_no} ({l.batch_no} • {l.pixel_pitch})</option>
             ))}
           </select>
@@ -305,8 +328,8 @@ const WorkflowsPage = ({ showToast }) => {
                         {lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>PCBs</span>
                       </div>
                     </div>
-                    <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                      <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Shortage vs Sent</span>
+                     <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+                      <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Shortage</span>
                       <div style={{ fontSize: '1.1rem', fontWeight: 800, color: lotProductionStats.qty_sent - lotProductionStats.received_qty > 0 ? '#f87171' : '#10b981', marginTop: 4 }}>
                         {lotProductionStats.qty_sent - lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>units</span>
                       </div>
@@ -406,6 +429,7 @@ const WorkflowsPage = ({ showToast }) => {
               setEsdMatGrounded={setEsdMatGrounded}
             />
           </div>
+
         </div>
 
         {/* Right Column: Vetting Queue / Logs form */}
@@ -752,10 +776,10 @@ const WorkflowsPage = ({ showToast }) => {
               <div style={{ marginTop: 24, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
                 <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12 }}>My Pending & Recent Step Log Submissions</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 150, overflowY: 'auto' }}>
-                  {pendingProductionLogs.filter(p => p.operator_id === user.id).length === 0 ? (
+                  {filteredPendingLogs.filter(p => p.operator_id === user.id).length === 0 ? (
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending clearance approvals for this step.</div>
                   ) : (
-                    pendingProductionLogs.filter(p => p.operator_id === user.id).map(p => (
+                    filteredPendingLogs.filter(p => p.operator_id === user.id).map(p => (
                       <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 8, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 6, fontSize: '0.72rem' }}>
                         <div>
                           <strong>{p.pcb_type}</strong> • Qty: {Object.values(p.step_data)[0]} units
@@ -783,14 +807,14 @@ const WorkflowsPage = ({ showToast }) => {
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {pendingProductionLogs.length === 0 ? (
+                {filteredPendingLogs.length === 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--text-muted)', textAlign: 'center' }}>
                     <CheckCircle size={36} color="#10b981" style={{ opacity: 0.6, marginBottom: 12 }} />
                     <h3 style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 800, margin: 0 }}>Step Queue Clear</h3>
                     <p style={{ fontSize: '0.75rem', margin: 0, marginTop: 4 }}>No pending step-wise logs require your clearance sign-off at this step.</p>
                   </div>
                 ) : (
-                  pendingProductionLogs.map(log => {
+                  filteredPendingLogs.map(log => {
                     const dataEntries = Object.entries(log.step_data);
                     const isTLPending = log.approval_status === 'Pending Team Lead';
                     const isTLRole = ['Team Lead', 'Manager', 'Superadmin'].includes(user.role);
@@ -881,7 +905,7 @@ const WorkflowsPage = ({ showToast }) => {
                                   className="btn btn-success"
                                   style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#10b981', color: 'var(--text-main)', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
                                 >
-                                  <CheckCheck size={12} /> Manager Approve
+                                  <Check size={12} /> Manager Approve
                                 </button>
                               )}
 

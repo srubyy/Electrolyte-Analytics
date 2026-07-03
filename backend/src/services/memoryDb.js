@@ -552,6 +552,7 @@ export const createPendingLog = (log) => {
 export const getAllPendingLogs = () => {
   return tables.pending_logs.map(pl => {
     const panel = tables.panels.find(p => p.id === pl.panel_id);
+    const lot = panel ? tables.lots.find(l => l.id === panel.lot_id) : null;
     const engineer = tables.users.find(u => u.id === pl.engineer_id);
     const teamLead = pl.team_lead_id ? tables.users.find(u => u.id === pl.team_lead_id) : null;
     return {
@@ -559,6 +560,7 @@ export const getAllPendingLogs = () => {
       barcode: panel ? panel.barcode : null,
       sr_no: panel ? panel.sr_no : null,
       side: panel ? panel.side : null,
+      lot_no: lot ? lot.lot_no : null,
       engineer_name: engineer ? engineer.name : 'Unknown',
       team_lead_name: teamLead ? teamLead.name : null
     };

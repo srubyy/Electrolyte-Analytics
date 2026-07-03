@@ -27,9 +27,10 @@ export const getApprovals = async (req, res) => {
         .sort((a, b) => a.id - b.id);
     } else {
       const approvalsRes = await query(`
-        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name
+        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name, l.lot_no
         FROM pending_logs pl
         JOIN panels p ON pl.panel_id = p.id
+        JOIN lots l ON p.lot_id = l.id
         JOIN users u ON pl.engineer_id = u.id
         LEFT JOIN users tl ON pl.team_lead_id = tl.id
         WHERE pl.approval_status IN ('Pending Team Lead', 'Pending Manager')
