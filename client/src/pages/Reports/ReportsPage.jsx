@@ -206,11 +206,11 @@ const ReportsPage = ({ showToast }) => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.7rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
-                <span style={{ fontFamily: 'monospace', color: '#fca5a5', fontWeight: 700 }}>ESRP2P5918E26128R0100</span>
+                <span style={{ fontFamily: 'monospace', color: '#fca5a5', fontWeight: 700 }}>Lot 18 (DX128) - Batch 1</span>
                 <span style={{ color: '#ef4444', fontWeight: 800 }}>42 mins ago</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'var(--card-bg)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>ESRP2P5919E26128R0382</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>Lot 19 (DX128) - Batch 3</span>
                 <span style={{ color: 'var(--text-muted)' }}>18 mins ago</span>
               </div>
             </div>

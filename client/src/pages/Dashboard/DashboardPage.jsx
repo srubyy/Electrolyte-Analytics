@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, RefreshCw, AlertTriangle, TrendingUp, History } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
+const DashboardPage = ({ setView, showToast }) => {
   const { user, apiFetch } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [lotFilter, setLotFilter] = useState('');
@@ -150,11 +150,11 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'var(--card-bg)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>ESRP2P5918E26128R0100</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>Lot 18 (DX128) - Batch Segment 1</span>
                 <span style={{ fontSize: '0.62rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>QC PASS</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'var(--card-bg)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>ESRP2P5919E26128R0382</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>Lot 19 (DX128) - Batch Segment 3</span>
                 <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', background: 'rgba(255, 212, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>REWORKED</span>
               </div>
             </div>
@@ -192,8 +192,6 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
                   onClick={() => {
                     if (step.count > 0) {
                       setView('repair');
-                      setBarcodeSearch(step.step_no === 12 ? 'ESRP2P5918E26128R0100' : 'ESRP2P5919E26128R0382');
-                      showToast(`Pre-filling serial search for Step ${step.step_no}!`);
                     }
                   }}
                   style={{ cursor: step.count > 0 ? 'pointer' : 'default' }}

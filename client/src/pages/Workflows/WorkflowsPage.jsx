@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, Wrench, ArrowRight, Check, X, ShieldAlert, CheckCircle, RefreshCw, Search, ToggleLeft, ToggleRight } from 'lucide-react'; import { useAuth } from '../../context/AuthContext';
+import { Cpu, Wrench, ArrowRight, Check, CheckCheck, X, ShieldAlert, CheckCircle, RefreshCw, Search, ToggleLeft, ToggleRight } from 'lucide-react'; import { useAuth } from '../../context/AuthContext';
 
 // Import feature components
 import StationChecklist from '../../features/workflows/StationChecklist';
-import ScannerSearch from '../../features/workflows/ScannerSearch';
 import PresetRemarksSelect from '../../features/workflows/PresetRemarksSelect';
 import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineIndicator';
 
-const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
+const WorkflowsPage = ({ showToast }) => {
   const { user, apiFetch } = useAuth();
 
   // Data states from parent or loaded locally
@@ -29,19 +28,6 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
   const [esdWristStrap, setEsdWristStrap] = useState(false);
   const [ionizerOn, setIonizerOn] = useState(false);
   const [esdMatGrounded, setEsdMatGrounded] = useState(false);
-
-  // Barcode search / assignment
-  const [searchedPanel, setSearchedPanel] = useState(null);
-  const [searchError, setSearchError] = useState('');
-  const [recentScans, setRecentScans] = useState(['ESRP2P5918E26128R0100', 'ESRP2P5919E26128R0382']);
-  const [showAssignForm, setShowAssignForm] = useState(false);
-  const [assignForm, setAssignForm] = useState({
-    lot_no: '',
-    sr_no: '',
-    side: 'Left',
-    assigned_engineer_id: ''
-  });
-  const [repairAction, setRepairAction] = useState({ status: 'OK', remark: '' });
 
   // Step Detail Modal States
   const [showStepDetailModal, setShowStepDetailModal] = useState(false);
@@ -143,128 +129,6 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
       }
     }
   }, [user, selectedProductionStep, productionLotId]);
-
-  // Handle barcode pre-fills from parent page transitions
-  useEffect(() => {
-    if (barcodeSearch) {
-      handlePanelSearch();
-    }
-  }, [barcodeSearch]);
-
-  // Barcode Panel Search
-  const handlePanelSearch = async (e) => {
-    if (e) e.preventDefault();
-    const cleanBarcode = barcodeSearch.trim();
-    if (!cleanBarcode) return;
-
-    setSearchError('');
-    setSearchedPanel(null);
-
-    try {
-      const res = await apiFetch(`/api/panels/search?barcode=${encodeURIComponent(cleanBarcode)}`);
-      const data = await res.json();
-      if (res.ok) {
-        setSearchedPanel(data);
-        setRecentScans(prev => {
-          const filtered = prev.filter(c => c !== cleanBarcode);
-          return [cleanBarcode, ...filtered].slice(0, 4);
-        });
-      } else {
-        setSearchError(data.error || 'PCB not found.');
-      }
-    } catch (err) {
-      console.error(err);
-      setSearchError('Error connecting to database.');
-    }
-  };
-
-  // Register & Assign Panel
-  const handlePanelAssign = async (e) => {
-    e.preventDefault();
-    const assignedId = assignForm.assigned_engineer_id || user.id;
-
-    try {
-      const res = await apiFetch('/api/repair/assign', {
-        method: 'POST',
-        body: JSON.stringify({
-          lot_no: parseInt(assignForm.lot_no),
-          sr_no: parseInt(assignForm.sr_no),
-          side: assignForm.side,
-          engineer_id: assignedId
-        })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast(`PCB assigned successfully! Barcode: ${data.barcode}`);
-        setBarcodeSearch(data.barcode);
-        setShowAssignForm(false);
-        setAssignForm({ lot_no: '', sr_no: '', side: 'Left', assigned_engineer_id: engineers[0]?.id || '' });
-
-        // Auto load panel state
-        setSearchedPanel({
-          panel: data.panel,
-          activities: [{
-            step_no: 1,
-            step_name: 'PCB Assign',
-            timestamp: new Date().toISOString(),
-            status: 'OK',
-            engineer_name: engineers.find(eng => eng.id === assignedId)?.name || user.name,
-            remark: 'Initial registration and PCB assignment'
-          }],
-          is_locked: false,
-          pending_info: null,
-          rework_info: null
-        });
-
-        fetchLotProductionStats(productionLotId);
-      } else {
-        showToast(data.error || 'Failed to assign PCB', 'danger');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Error connecting to API', 'danger');
-    }
-  };
-
-  // Log Step Reworks / Progress actions
-  const handleRepairAction = async (e) => {
-    e.preventDefault();
-    if (!searchedPanel) return;
-
-    try {
-      const res = await apiFetch('/api/repair/next', {
-        method: 'POST',
-        body: JSON.stringify({
-          panel_id: searchedPanel.panel.id,
-          engineer_id: user.id,
-          status: repairAction.status,
-          remark: repairAction.remark
-        })
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        if (data.pending) {
-          showToast(data.message, 'warning');
-        } else {
-          showToast(`PCB updated successfully to Step ${data.current_step}!`);
-        }
-        setRepairAction({ status: 'OK', remark: '' });
-
-        // Reload panel state
-        const reloadRes = await apiFetch(`/api/panels/search?barcode=${searchedPanel.panel.barcode}`);
-        const reloadData = await reloadRes.json();
-        setSearchedPanel(reloadData);
-
-        fetchLotProductionStats(productionLotId);
-      } else {
-        showToast(data.error || 'Failed to update PCB', 'danger');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Error connecting to API', 'danger');
-    }
-  };
 
   // Submit Step Log
   const handleProductionLogSubmit = async (e) => {
@@ -542,26 +406,6 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
               setEsdMatGrounded={setEsdMatGrounded}
             />
           </div>
-
-          {/* Barcode Search Scanner Panel */}
-          <ScannerSearch
-            barcodeSearch={barcodeSearch}
-            setBarcodeSearch={setBarcodeSearch}
-            handlePanelSearch={handlePanelSearch}
-            searchedPanel={searchedPanel}
-            searchError={searchError}
-            recentScans={recentScans}
-            showAssignForm={showAssignForm}
-            setShowAssignForm={setShowAssignForm}
-            assignForm={assignForm}
-            setAssignForm={setAssignForm}
-            handlePanelAssign={handlePanelAssign}
-            engineers={engineers}
-            user={user}
-            repairAction={repairAction}
-            setRepairAction={setRepairAction}
-            handleRepairAction={handleRepairAction}
-          />
         </div>
 
         {/* Right Column: Vetting Queue / Logs form */}
@@ -1088,7 +932,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                 <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Search PCBs by barcode, lot, or engineer..."
+                  placeholder="Search PCBs by lot or engineer..."
                   value={stepDetailSearchQuery}
                   onChange={e => setStepDetailSearchQuery(e.target.value)}
                   style={{ padding: '8px 12px 8px 34px', fontSize: '0.78rem', background: 'var(--input-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-main)' }}
@@ -1116,7 +960,6 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         const filtered = stepDetailPanels.filter(p => {
                           if (!q) return true;
                           return (
-                            p.barcode.toLowerCase().includes(q) ||
                             String(p.lot_no).toLowerCase().includes(q) ||
                             p.engineer_name.toLowerCase().includes(q)
                           );
@@ -1146,7 +989,6 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                 const filtered = stepDetailPanels.filter(p => {
                   if (!q) return true;
                   return (
-                    p.barcode.toLowerCase().includes(q) ||
                     String(p.lot_no).toLowerCase().includes(q) ||
                     p.engineer_name.toLowerCase().includes(q)
                   );
@@ -1184,7 +1026,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                               {panels.map(p => (
                                 <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: '0.75rem' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>{p.barcode}</strong>
+                                    <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>PCB Record</strong>
                                     <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700 }}>SR #{p.sr_no}</span>
                                   </div>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
@@ -1205,7 +1047,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                       {filtered.map(p => (
                         <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>{p.barcode}</strong>
+                            <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>PCB Record</strong>
                             <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700 }}>Lot {p.lot_no} • SR #{p.sr_no}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>

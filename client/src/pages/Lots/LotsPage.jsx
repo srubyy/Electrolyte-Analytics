@@ -360,12 +360,12 @@ const LotsPage = ({ showToast }) => {
   };
 
   const exportSingleLot = (lotNo, panels) => {
-    const headers = ["Serial Number", "Barcode", "Side", "Status", "Current Step", "Assigned Operator"];
+    const headers = ["Serial Number", "PCB Record ID", "Side", "Status", "Current Step", "Assigned Operator"];
     const STEP_NAMES = [
       "Inward", "Segregation", "Programming", "1st Testing", "Debug", "Entry",
       "Cleaning", "QC After Cleaning", "Marking & Coating", "Final Testing", "Packing", "Final Entry"
     ];
-    const rows = panels.map(p => [p.sr_no, p.barcode, p.side, p.status, STEP_NAMES[p.current_step - 1], p.engineer_name || 'Unassigned']);
+    const rows = panels.map(p => [p.sr_no, p.id, p.side, p.status, STEP_NAMES[p.current_step - 1], p.engineer_name || 'Unassigned']);
     downloadCSV(`ES_Lot_${lotNo}_Report.csv`, headers, rows);
     showToast(`Report downloaded for Lot ${lotNo}!`);
   };

@@ -47,7 +47,7 @@ export const query = async (text, params = [], userContext = null) => {
     await client.query('BEGIN');
     // Set RLS variables securely via parameterized queries
     await client.query(`SELECT set_config('app.current_user_id', $1, true)`, [String(userContext.id || '')]);
-    await client.query(`SELECT set_config('app.current_user_role', $2, true)`, [String(userContext.role || '')]);
+    await client.query(`SELECT set_config('app.current_user_role', $1, true)`, [String(userContext.role || '')]);
     
     const res = await client.query(text, params);
     await client.query('COMMIT');

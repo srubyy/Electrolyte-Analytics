@@ -18,7 +18,6 @@ import SettingsPage from './pages/Settings/SettingsPage';
 function App() {
   const { user, loading } = useAuth();
   const [view, setView] = useState('dashboard');
-  const [barcodeSearch, setBarcodeSearch] = useState('');
   const [notification, setNotification] = useState(null);
 
   const showToast = (message, type = 'success') => {
@@ -74,7 +73,6 @@ function App() {
         {view === 'dashboard' && (
           <DashboardPage 
             setView={setView} 
-            setBarcodeSearch={setBarcodeSearch} 
             showToast={showToast} 
           />
         )}
@@ -83,8 +81,6 @@ function App() {
         )}
         {view === 'repair' && (
           <WorkflowsPage 
-            barcodeSearch={barcodeSearch} 
-            setBarcodeSearch={setBarcodeSearch} 
             showToast={showToast} 
           />
         )}
