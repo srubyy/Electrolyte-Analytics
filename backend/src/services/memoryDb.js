@@ -26,7 +26,8 @@ export const tables = {
   performance_scores: [],
   pending_logs: [],
   lot_transactions: [],
-  production_logs: []
+  production_logs: [],
+  pending_production_logs: []
 };
 
 // --- Seed Parsing Helpers ---

@@ -181,5 +181,24 @@ export const Panel = {
       [status, currentStep, assignedEngineerId, id]
     );
     return res.rows[0];
+  },
+
+  async getDailyActivityTrend(userContext = null) {
+    if (isFallback()) {
+      return memoryDb.getDailyActivityTrend();
+    }
+    const sql = `
+      SELECT 
+        TO_CHAR(pl.timestamp, 'YYYY-MM-DD') as date,
+        s.name as step_name,
+        COUNT(*)::integer as count
+      FROM panel_logs pl
+      JOIN repair_steps s ON pl.step_id = s.id
+      GROUP BY TO_CHAR(pl.timestamp, 'YYYY-MM-DD'), s.name
+      ORDER BY date DESC, count DESC
+      LIMIT 30
+    `;
+    const res = await query(sql, [], userContext);
+    return res.rows;
   }
 };

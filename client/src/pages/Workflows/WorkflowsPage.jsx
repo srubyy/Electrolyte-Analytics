@@ -45,9 +45,6 @@ const WorkflowsPage = ({ selectedLotNo, showToast }) => {
       if (res.ok) {
         const data = await res.json();
         setEngineers(data);
-        if (data.length > 0) {
-          setAssignForm(prev => ({ ...prev, assigned_engineer_id: data[0].id }));
-        }
       }
     } catch (err) {
       console.error(err);
@@ -126,11 +123,9 @@ const WorkflowsPage = ({ selectedLotNo, showToast }) => {
         const lot = stockData.find(l => l.lot_no === parseInt(selectedLotNo));
         if (lot) {
           setProductionLotId(lot.id);
-          setAssignForm(prev => ({ ...prev, lot_no: selectedLotNo }));
         }
       } else {
         setProductionLotId('');
-        setAssignForm(prev => ({ ...prev, lot_no: '' }));
       }
     }
   }, [selectedLotNo, stockData]);
