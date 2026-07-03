@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cpu, ArrowRight, Check, X, ShieldAlert, CheckCircle, RefreshCw, Search, ToggleLeft, ToggleRight } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { Cpu, Wrench, ArrowRight, Check, X, ShieldAlert, CheckCircle, RefreshCw, Search, ToggleLeft, ToggleRight } from 'lucide-react'; import { useAuth } from '../../context/AuthContext';
 
 // Import feature components
 import StationChecklist from '../../features/workflows/StationChecklist';
@@ -10,11 +9,11 @@ import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineInd
 
 const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
   const { user, apiFetch } = useAuth();
-  
+
   // Data states from parent or loaded locally
   const [engineers, setEngineers] = useState([]);
   const [stockData, setStockData] = useState([]);
-  
+
   // Terminal selection states
   const [selectedProductionStep, setSelectedProductionStep] = useState(1);
   const [productionLotId, setProductionLotId] = useState('');
@@ -87,7 +86,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
     try {
       let url = '/api/production/pending';
       if (stepNo) url += `?step_no=${stepNo}`;
-      
+
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -105,7 +104,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
       if (lotId) params.push(`lot_id=${lotId}`);
       if (stepNo) params.push(`step_no=${stepNo}`);
       if (params.length > 0) url += `?${params.join('&')}`;
-      
+
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -157,10 +156,10 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
     if (e) e.preventDefault();
     const cleanBarcode = barcodeSearch.trim();
     if (!cleanBarcode) return;
-    
+
     setSearchError('');
     setSearchedPanel(null);
-    
+
     try {
       const res = await apiFetch(`/api/panels/search?barcode=${encodeURIComponent(cleanBarcode)}`);
       const data = await res.json();
@@ -200,7 +199,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         setBarcodeSearch(data.barcode);
         setShowAssignForm(false);
         setAssignForm({ lot_no: '', sr_no: '', side: 'Left', assigned_engineer_id: engineers[0]?.id || '' });
-        
+
         // Auto load panel state
         setSearchedPanel({
           panel: data.panel,
@@ -216,7 +215,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
           pending_info: null,
           rework_info: null
         });
-        
+
         fetchLotProductionStats(productionLotId);
       } else {
         showToast(data.error || 'Failed to assign panel', 'danger');
@@ -243,7 +242,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         })
       });
       const data = await res.json();
-      
+
       if (res.ok) {
         if (data.pending) {
           showToast(data.message, 'warning');
@@ -251,12 +250,12 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
           showToast(`Panel updated successfully to Step ${data.current_step}!`);
         }
         setRepairAction({ status: 'OK', remark: '' });
-        
+
         // Reload panel state
         const reloadRes = await apiFetch(`/api/panels/search?barcode=${searchedPanel.panel.barcode}`);
         const reloadData = await reloadRes.json();
         setSearchedPanel(reloadData);
-        
+
         fetchLotProductionStats(productionLotId);
       } else {
         showToast(data.error || 'Failed to update panel', 'danger');
@@ -394,16 +393,16 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
       <div className="app-header">
         <div>
           <span className="app-subtitle">Operations Terminal</span>
-          <h1 className="app-title"><Wrench size={20} color="#ffd400" /> Refurbishment Pipeline Station</h1>
+          <h1 className="app-title"><Wrench size={20} color='var(--color-primary)' /> Refurbishment Pipeline Station</h1>
         </div>
-        
+
         {/* Active Lot selector */}
         <div className="repair-lot-selector" style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>Active Lot:</label>
           <select
             value={productionLotId}
             onChange={e => { setProductionLotId(e.target.value); fetchLotProductionStats(e.target.value); setStepInputs({}); }}
-            style={{ width: 'auto', minWidth: 200, padding: '6px 12px', background: 'rgba(0,0,0,0.4)', color: '#fff', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+            style={{ width: 'auto', minWidth: 200, padding: '6px 12px', background: 'var(--input-bg)', color: 'var(--text-main)', borderRadius: 8, border: '1px solid var(--card-border)', cursor: 'pointer' }}
           >
             <option value="">-- Select Active Lot --</option>
             {stockData.map(l => (
@@ -418,7 +417,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           <Wrench size={14} /> Interactive 12-Step Pipeline Flow (Click to Select Step)
         </h3>
-        <PipelineIndicator 
+        <PipelineIndicator
           selectedStep={selectedProductionStep}
           onSelectStep={(stepNo) => { setSelectedProductionStep(stepNo); setStepInputs({}); }}
           onViewStepPanels={(stepNo) => { fetchStepPanels(stepNo); setShowStepDetailModal(true); }}
@@ -430,19 +429,19 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20, height: 'fit-content' }}>
             <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Cpu size={16} /> Lot Checksum & Yield Vitals
               </h3>
               {lotProductionStats ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                       <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Inward Received</span>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffd400', marginTop: 4 }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: 4 }}>
                         {lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>PCBs</span>
                       </div>
                     </div>
-                    <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                       <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Shortage vs Sent</span>
                       <div style={{ fontSize: '1.1rem', fontWeight: 800, color: lotProductionStats.qty_sent - lotProductionStats.received_qty > 0 ? '#f87171' : '#10b981', marginTop: 4 }}>
                         {lotProductionStats.qty_sent - lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>units</span>
@@ -452,38 +451,38 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
 
                   {/* Stage-wise throughput metrics */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>Stage-wise Active Throughput:</div>
-                    
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)' }}>Stage-wise Active Throughput:</div>
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
                       <span>Step 1: Inward (Lot Received)</span>
-                      <span style={{ color: '#ffd400', fontWeight: 700 }}>{lotProductionStats.received_qty} units</span>
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{lotProductionStats.received_qty} units</span>
                     </div>
-                    
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
                       <span>Step 2: Segregation</span>
-                      <span style={{ color: '#ffd400', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
                         {parseInt(lotProductionStats.steps[2]?.repairable_qty || 0)} Rep • {parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)} Scrap
                       </span>
                     </div>
 
                     {/* Checksum discrepancy warnings */}
                     {parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) > 0 &&
-                     parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) !== lotProductionStats.received_qty && (
-                      <div style={{ color: '#ef4444', fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.05)', padding: 6, borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.1)' }}>
-                        ⚠️ DISCREPANCY DETECTED: Segregated count ({parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)}) does not match Inward count ({lotProductionStats.received_qty})!
-                      </div>
-                    )}
+                      parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) !== lotProductionStats.received_qty && (
+                        <div style={{ color: '#ef4444', fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.05)', padding: 6, borderRadius: 6, border: '1px solid var(--card-border)' }}>
+                          ⚠️ DISCREPANCY DETECTED: Segregated count ({parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)}) does not match Inward count ({lotProductionStats.received_qty})!
+                        </div>
+                      )}
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
                       <span>Step 3: Programming</span>
-                      <span style={{ color: '#ffd400', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
                         {parseInt(lotProductionStats.steps[3]?.code_ok || 0)} OK • {parseInt(lotProductionStats.steps[3]?.code_not_ok || 0)} Fail
                       </span>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
                       <span>Step 4: 1st Testing</span>
-                      <span style={{ color: '#ffd400', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
                         {parseInt(lotProductionStats.steps[4]?.qty_passed || 0)} Passed • {parseInt(lotProductionStats.steps[4]?.qty_failed || 0)} Failed
                       </span>
                     </div>
@@ -495,11 +494,11 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                   </div>
                 </div>
               ) : (
-                <div style={{ 
-                  padding: '16px', 
-                  background: 'rgba(255, 255, 255, 0.01)', 
-                  border: '1px dashed rgba(255, 255, 255, 0.06)', 
-                  borderRadius: 10, 
+                <div style={{
+                  padding: '16px',
+                  background: 'var(--card-bg)',
+                  border: '1px dashed rgba(255, 255, 255, 0.06)',
+                  borderRadius: 10,
                   textAlign: 'center',
                   display: 'flex',
                   flexDirection: 'column',
@@ -522,7 +521,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
               <select
                 value={productionPcbType}
                 onChange={e => setProductionPcbType(e.target.value)}
-                style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff', borderRadius: 8, width: '100%', cursor: 'pointer' }}
+                style={{ padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 8, width: '100%', cursor: 'pointer' }}
               >
                 <option value="GV3 Digital PCB">GV3 Digital PCB</option>
                 <option value="GV2 Remote Main PCB">GV2 Remote Main PCB</option>
@@ -534,18 +533,18 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
             </div>
 
             {/* ESD Checklist */}
-            <StationChecklist 
-              esdWristStrap={esdWristStrap} 
-              setEsdWristStrap={setEsdWristStrap} 
-              ionizerOn={ionizerOn} 
-              setIonizerOn={setIonizerOn} 
-              esdMatGrounded={esdMatGrounded} 
-              setEsdMatGrounded={setEsdMatGrounded} 
+            <StationChecklist
+              esdWristStrap={esdWristStrap}
+              setEsdWristStrap={setEsdWristStrap}
+              ionizerOn={ionizerOn}
+              setIonizerOn={setIonizerOn}
+              esdMatGrounded={esdMatGrounded}
+              setEsdMatGrounded={setEsdMatGrounded}
             />
           </div>
 
           {/* Barcode Search Scanner Panel */}
-          <ScannerSearch 
+          <ScannerSearch
             barcodeSearch={barcodeSearch}
             setBarcodeSearch={setBarcodeSearch}
             handlePanelSearch={handlePanelSearch}
@@ -569,7 +568,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {user?.role === 'Employee' ? (
             <div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16 }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16 }}>
                 Log Production Batch - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}
               </h2>
 
@@ -583,7 +582,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 658"
                         value={stepInputs.qty_received || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_received: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_received: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -593,7 +592,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 678"
                         value={stepInputs.expected_qty || ''}
-                        onChange={e => setStepInputs({...stepInputs, expected_qty: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, expected_qty: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -611,7 +610,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 600"
                         value={stepInputs.repairable_qty || ''}
-                        onChange={e => setStepInputs({...stepInputs, repairable_qty: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, repairable_qty: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -621,7 +620,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 58"
                         value={stepInputs.scrap_qty || ''}
-                        onChange={e => setStepInputs({...stepInputs, scrap_qty: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, scrap_qty: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -645,7 +644,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 590"
                         value={stepInputs.code_ok || ''}
-                        onChange={e => setStepInputs({...stepInputs, code_ok: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, code_ok: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -655,7 +654,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 10"
                         value={stepInputs.code_not_ok || ''}
-                        onChange={e => setStepInputs({...stepInputs, code_not_ok: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, code_not_ok: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -673,7 +672,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 570"
                         value={stepInputs.qty_passed || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_passed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_passed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -683,7 +682,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 20"
                         value={stepInputs.qty_failed || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_failed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_failed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={4} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -699,7 +698,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 15"
                         value={stepInputs.debug_ok || ''}
-                        onChange={e => setStepInputs({...stepInputs, debug_ok: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, debug_ok: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -709,7 +708,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 3"
                         value={stepInputs.critical_qty || ''}
-                        onChange={e => setStepInputs({...stepInputs, critical_qty: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, critical_qty: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -719,7 +718,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 2"
                         value={stepInputs.scrap_qty || ''}
-                        onChange={e => setStepInputs({...stepInputs, scrap_qty: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, scrap_qty: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={5} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -735,14 +734,14 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 585"
                         value={stepInputs.entry_count || ''}
-                        onChange={e => setStepInputs({...stepInputs, entry_count: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, entry_count: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
                       <label>PCB Status</label>
                       <select
                         value={stepInputs.pcb_status || 'OK PCB'}
-                        onChange={e => setStepInputs({...stepInputs, pcb_status: e.target.value})}
+                        onChange={e => setStepInputs({ ...stepInputs, pcb_status: e.target.value })}
                       >
                         <option value="OK PCB">OK PCB</option>
                         <option value="Faulty">Faulty</option>
@@ -760,7 +759,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 580"
                         value={stepInputs.qty_cleaned || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_cleaned: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_cleaned: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -770,7 +769,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 5"
                         value={stepInputs.qc_reject || ''}
-                        onChange={e => setStepInputs({...stepInputs, qc_reject: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qc_reject: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={7} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -786,7 +785,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 580"
                         value={stepInputs.qty_passed || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_passed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_passed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -796,7 +795,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 0"
                         value={stepInputs.qty_failed || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_failed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_failed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={8} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -812,7 +811,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         required
                         placeholder="e.g. 580"
                         value={stepInputs.qty_coated || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_coated: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_coated: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={9} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -827,7 +826,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         type="number"
                         required
                         value={stepInputs.qty_passed || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_passed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_passed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -836,7 +835,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         type="number"
                         required
                         value={stepInputs.qty_failed || ''}
-                        onChange={e => setStepInputs({...stepInputs, qty_failed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_failed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={10} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -851,7 +850,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         type="number"
                         required
                         value={stepInputs.bubble_packed || ''}
-                        onChange={e => setStepInputs({...stepInputs, bubble_packed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, bubble_packed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -860,7 +859,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         type="number"
                         required
                         value={stepInputs.box_packed || ''}
-                        onChange={e => setStepInputs({...stepInputs, box_packed: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, box_packed: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
@@ -869,7 +868,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         type="text"
                         placeholder="e.g. DISP-72"
                         value={stepInputs.out_lot || ''}
-                        onChange={e => setStepInputs({...stepInputs, out_lot: e.target.value})}
+                        onChange={e => setStepInputs({ ...stepInputs, out_lot: e.target.value })}
                       />
                     </div>
                     <PresetRemarksSelect stepNo={11} stepInputs={stepInputs} setStepInputs={setStepInputs} />
@@ -884,14 +883,14 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         type="number"
                         required
                         value={stepInputs.entry_count || ''}
-                        onChange={e => setStepInputs({...stepInputs, entry_count: parseInt(e.target.value) || ''})}
+                        onChange={e => setStepInputs({ ...stepInputs, entry_count: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div className="form-group">
                       <label>PCB Status</label>
                       <select
                         value={stepInputs.pcb_status || 'OK PCB'}
-                        onChange={e => setStepInputs({...stepInputs, pcb_status: e.target.value})}
+                        onChange={e => setStepInputs({ ...stepInputs, pcb_status: e.target.value })}
                       >
                         <option value="OK PCB">OK PCB</option>
                         <option value="Faulty">Faulty</option>
@@ -913,7 +912,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>No pending clearance approvals for this step.</div>
                   ) : (
                     pendingProductionLogs.filter(p => p.operator_id === user.id).map(p => (
-                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 6, fontSize: '0.72rem' }}>
+                      <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 8, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 6, fontSize: '0.72rem' }}>
                         <div>
                           <strong>{p.pcb_type}</strong> • Qty: {Object.values(p.step_data)[0]} units
                           {p.rejection_reason && <div style={{ color: '#ef4444', fontSize: '0.65rem' }}>❌ Rejected Reason: {p.rejection_reason}</div>}
@@ -928,11 +927,11 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
           ) : (
             /* Vetting & Approvals Queue for Selected Step (TL / Manager) */
             <div>
-              <h2 className="vetting-queue-header" style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <h2 className="vetting-queue-header" style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <span>Vetting & Approvals Queue - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}</span>
-                <button 
-                  onClick={() => fetchPendingProductionLogs(selectedProductionStep)} 
-                  className="btn btn-secondary" 
+                <button
+                  onClick={() => fetchPendingProductionLogs(selectedProductionStep)}
+                  className="btn btn-secondary"
                   style={{ width: 'auto', margin: 0, padding: '4px 8px', fontSize: '0.65rem' }}
                 >
                   Refresh
@@ -943,7 +942,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                 {pendingProductionLogs.length === 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--text-muted)', textAlign: 'center' }}>
                     <CheckCircle size={36} color="#10b981" style={{ opacity: 0.6, marginBottom: 12 }} />
-                    <h3 style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 800, margin: 0 }}>Step Queue Clear</h3>
+                    <h3 style={{ fontSize: '0.9rem', color: 'var(--text-main)', fontWeight: 800, margin: 0 }}>Step Queue Clear</h3>
                     <p style={{ fontSize: '0.75rem', margin: 0, marginTop: 4 }}>No pending step-wise logs require your clearance sign-off at this step.</p>
                   </div>
                 ) : (
@@ -955,19 +954,19 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                     const isManagerPending = log.approval_status === 'Pending Manager';
 
                     return (
-                      <div 
-                        key={log.id} 
-                        className="glass-panel" 
-                        style={{ 
-                          padding: 14, 
-                          border: '1px solid rgba(255,255,255,0.04)', 
-                          background: 'rgba(255,255,255,0.015)',
+                      <div
+                        key={log.id}
+                        className="glass-panel"
+                        style={{
+                          padding: 14,
+                          border: '1px solid var(--card-border)',
+                          background: 'var(--card-bg)',
                           borderColor: isTLPending ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)'
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: 8, marginBottom: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 10 }}>
                           <div>
-                            <strong style={{ fontSize: '0.8rem', color: '#fff' }}>Lot {log.lot_no} ({log.batch_no} • {log.pixel_pitch})</strong>
+                            <strong style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>Lot {log.lot_no} ({log.batch_no} • {log.pixel_pitch})</strong>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
                               Operator: <strong>{log.operator_name || 'System'}</strong> • Time: {new Date(log.timestamp).toLocaleString()}
                             </div>
@@ -980,14 +979,14 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>LOG DATA FIELDS:</div>
                           <div className="approval-data-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                            <div style={{ padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                            <div style={{ padding: '6px 8px', background: 'var(--input-bg)', borderRadius: 6 }}>
                               <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block' }}>PCB Type</span>
-                              <strong style={{ fontSize: '0.72rem', color: '#fff' }}>{log.pcb_type}</strong>
+                              <strong style={{ fontSize: '0.72rem', color: 'var(--text-main)' }}>{log.pcb_type}</strong>
                             </div>
                             {dataEntries.map(([k, v]) => (
-                              <div key={k} style={{ padding: '6px 8px', background: 'rgba(0,0,0,0.2)', borderRadius: 6 }}>
+                              <div key={k} style={{ padding: '6px 8px', background: 'var(--input-bg)', borderRadius: 6 }}>
                                 <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'capitalize' }}>{k.replace('_', ' ')}</span>
-                                <strong style={{ fontSize: '0.72rem', color: '#ffd400' }}>{String(v)}</strong>
+                                <strong style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>{String(v)}</strong>
                               </div>
                             ))}
                           </div>
@@ -997,24 +996,24 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', alignItems: 'center' }}>
                           {rejectionLogInputId === log.id ? (
                             <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 required
                                 placeholder="Enter reason for rejection..."
                                 value={rejectionLogText}
                                 onChange={e => setRejectionLogText(e.target.value)}
                                 style={{ flex: 1, padding: '6px 12px', fontSize: '0.72rem' }}
                               />
-                              <button 
-                                onClick={() => rejectProductionLog(log.id, rejectionLogText)} 
-                                className="btn btn-danger" 
+                              <button
+                                onClick={() => rejectProductionLog(log.id, rejectionLogText)}
+                                className="btn btn-danger"
                                 style={{ width: 'auto', margin: 0, padding: '6px 12px', fontSize: '0.72rem' }}
                               >
                                 Confirm
                               </button>
-                              <button 
-                                onClick={() => setRejectionLogInputId(null)} 
-                                className="btn btn-secondary" 
+                              <button
+                                onClick={() => setRejectionLogInputId(null)}
+                                className="btn btn-secondary"
                                 style={{ width: 'auto', margin: 0, padding: '6px 12px', fontSize: '0.72rem' }}
                               >
                                 Cancel
@@ -1023,29 +1022,29 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                           ) : (
                             <>
                               {isTLPending && isTLRole && (
-                                <button 
-                                  onClick={() => tlApproveProductionLog(log.id)} 
-                                  className="btn btn-success" 
-                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#ffd400', color: '#000', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                                <button
+                                  onClick={() => tlApproveProductionLog(log.id)}
+                                  className="btn btn-success"
+                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', background: 'var(--color-primary)', color: '#000', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
                                 >
                                   <Check size={12} /> TL Sign-off
                                 </button>
                               )}
-                              
+
                               {isManagerPending && isMgrRole && (
-                                <button 
-                                  onClick={() => managerApproveProductionLog(log.id)} 
-                                  className="btn btn-success" 
-                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#10b981', color: '#fff', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                                <button
+                                  onClick={() => managerApproveProductionLog(log.id)}
+                                  className="btn btn-success"
+                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#10b981', color: 'var(--text-main)', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
                                 >
                                   <CheckCheck size={12} /> Manager Approve
                                 </button>
                               )}
 
                               {((isTLPending && isTLRole) || (isManagerPending && isMgrRole)) && (
-                                <button 
-                                  onClick={() => { setRejectionLogInputId(log.id); setRejectionLogText(''); }} 
-                                  className="btn btn-danger" 
+                                <button
+                                  onClick={() => { setRejectionLogInputId(log.id); setRejectionLogText(''); }}
+                                  className="btn btn-danger"
                                   style={{ width: 'auto', margin: 0, padding: '6px 14px', fontSize: '0.72rem', cursor: 'pointer' }}
                                 >
                                   <X size={12} /> Reject
@@ -1066,17 +1065,17 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
 
       {/* Step Active Panels Detail Modal */}
       {showStepDetailModal && stepDetailStepNo && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div className="glass-panel" style={{ width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 20, borderColor: 'var(--color-primary)', background: '#0b0f19', borderRadius: 16 }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12, marginBottom: 16 }}>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--card-border)', paddingBottom: 12, marginBottom: 16 }}>
               <div>
                 <span className="app-subtitle" style={{ fontSize: '0.65rem' }}>Stepwise Live Inventory</span>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', marginTop: 2 }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: 2 }}>
                   Step {stepDetailStepNo}: {STEP_NAMES[stepDetailStepNo - 1]}
                 </h3>
               </div>
-              <button 
+              <button
                 onClick={() => { setShowStepDetailModal(false); setStepDetailPanels([]); setStepDetailSearchQuery(''); }}
                 style={{ background: 'rgba(239, 68, 68, 0.1)', border: 'none', borderRadius: '50%', color: '#ef4444', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
@@ -1087,26 +1086,26 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
               <div style={{ position: 'relative', width: '100%' }}>
                 <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                <input 
-                  type="text" 
-                  placeholder="Search panels by barcode, lot, or engineer..." 
+                <input
+                  type="text"
+                  placeholder="Search panels by barcode, lot, or engineer..."
                   value={stepDetailSearchQuery}
                   onChange={e => setStepDetailSearchQuery(e.target.value)}
-                  style={{ padding: '8px 12px 8px 34px', fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255, 212, 0, 0.15)', borderRadius: 8, color: '#fff' }}
+                  style={{ padding: '8px 12px 8px 34px', fontSize: '0.78rem', background: 'var(--input-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-main)' }}
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', background: 'var(--card-bg)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ color: 'var(--text-muted)' }}>Group by Lot:</span>
-                  <button 
+                  <button
                     onClick={() => setGroupByLotEnabled(!groupByLotEnabled)}
-                    style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                    style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
                   >
                     {groupByLotEnabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
                   </button>
                 </div>
-                
+
                 <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
                   {stepDetailLoading ? (
                     <span>Loading...</span>
@@ -1122,8 +1121,8 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                             p.engineer_name.toLowerCase().includes(q)
                           );
                         });
-                        return q 
-                          ? `Showing ${filtered.length} of ${stepDetailPanels.length} panels` 
+                        return q
+                          ? `Showing ${filtered.length} of ${stepDetailPanels.length} panels`
                           : `${stepDetailPanels.length} active panels`;
                       })()}
                     </span>
@@ -1175,17 +1174,17 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                         const sample = panels[0];
                         return (
                           <div key={lotNo} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid rgba(255, 212, 0, 0.15)', paddingBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid var(--card-border)', paddingBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span>📦 Lot {lotNo} ({sample.batch_no} • {sample.pixel_pitch})</span>
-                              <span style={{ fontSize: '0.62rem', background: 'rgba(255,255,255,0.05)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
+                              <span style={{ fontSize: '0.62rem', background: 'var(--card-bg)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
                                 {panels.length} panels
                               </span>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               {panels.map(p => (
-                                <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 8, fontSize: '0.75rem' }}>
+                                <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: '0.75rem' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <strong style={{ fontSize: '0.78rem', color: '#fff', fontFamily: 'monospace' }}>{p.barcode}</strong>
+                                    <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>{p.barcode}</strong>
                                     <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700 }}>SR #{p.sr_no}</span>
                                   </div>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>
@@ -1204,9 +1203,9 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                   return (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       {filtered.map(p => (
-                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: 8, fontSize: '0.75rem' }}>
+                        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '10px 12px', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 8, fontSize: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <strong style={{ fontSize: '0.78rem', color: '#fff', fontFamily: 'monospace' }}>{p.barcode}</strong>
+                            <strong style={{ fontSize: '0.78rem', color: 'var(--text-main)', fontFamily: 'monospace' }}>{p.barcode}</strong>
                             <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', fontWeight: 700 }}>Lot {p.lot_no} • SR #{p.sr_no}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 2 }}>

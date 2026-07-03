@@ -388,7 +388,7 @@ const LotsPage = ({ showToast }) => {
       <div className="app-header">
         <div>
           <span className="app-subtitle">Inventory Management</span>
-          <h1 className="app-title"><Package size={20} color="#ffd400" /> Stock Summary</h1>
+          <h1 className="app-title"><Package size={20} color='var(--color-primary)' /> Stock Summary</h1>
         </div>
         
         {/* Header Action Grid */}
@@ -406,7 +406,7 @@ const LotsPage = ({ showToast }) => {
             <button 
               onClick={() => setShowInwardForm(!showInwardForm)} 
               className="badge badge-success"
-              style={{ cursor: 'pointer', background: '#ffd400', color: '#000', border: 'none', padding: '6px 12px' }}
+              style={{ cursor: 'pointer', background: 'var(--color-primary)', color: '#000', border: 'none', padding: '6px 12px' }}
             >
               <Plus size={12} /> Inward Lot
             </button>
@@ -440,7 +440,7 @@ const LotsPage = ({ showToast }) => {
         {/* Left Column: Search & Filters */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 12 }}>Filter Stock Records</h3>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 12 }}>Filter Stock Records</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -525,12 +525,12 @@ const LotsPage = ({ showToast }) => {
                   if (totalReceived === 0) return null;
                   
                   return (
-                    <div key={client.id} style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div key={client.id} style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 6 }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}>{client.name}</span>
-                        <span style={{ fontSize: '0.7rem', color: '#ffd400', fontWeight: 600 }}>{totalAvailable} / {totalReceived} avl</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)' }}>{client.name}</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--color-primary)', fontWeight: 600 }}>{totalAvailable} / {totalReceived} avl</span>
                       </div>
-                      <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
+                      <div style={{ height: 4, background: 'var(--card-bg)', borderRadius: 2 }}>
                         <div style={{ width: `${progressPct}%`, height: '100%', background: 'var(--color-blue)', borderRadius: 2 }}></div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.58rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -550,17 +550,17 @@ const LotsPage = ({ showToast }) => {
               <Info size={14} /> Environmental Vitals
             </h4>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, fontSize: '0.68rem', textAlign: 'center' }}>
-              <div style={{ padding: '8px 4px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+              <div style={{ padding: '8px 4px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.55rem', textTransform: 'uppercase', marginBottom: 2 }}>Humidity</div>
                 <strong style={{ color: '#10b981', fontSize: '0.85rem' }}>38% RH</strong>
                 <div style={{ color: '#10b981', fontSize: '0.5rem', fontWeight: 700, marginTop: 2 }}>SAFE</div>
               </div>
-              <div style={{ padding: '8px 4px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+              <div style={{ padding: '8px 4px', background: 'rgba(16, 185, 129, 0.05)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.55rem', textTransform: 'uppercase', marginBottom: 2 }}>Temperature</div>
                 <strong style={{ color: '#10b981', fontSize: '0.85rem' }}>22.4°C</strong>
                 <div style={{ color: '#10b981', fontSize: '0.5rem', fontWeight: 700, marginTop: 2 }}>SAFE</div>
               </div>
-              <div style={{ padding: '8px 4px', background: 'rgba(59, 130, 246, 0.05)', borderRadius: 8, border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+              <div style={{ padding: '8px 4px', background: 'rgba(59, 130, 246, 0.05)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.55rem', textTransform: 'uppercase', marginBottom: 2 }}>ESD Level</div>
                 <strong style={{ color: '#60a5fa', fontSize: '0.85rem' }}>0V</strong>
                 <div style={{ color: '#60a5fa', fontSize: '0.5rem', fontWeight: 700, marginTop: 2 }}>SAFE</div>
@@ -571,7 +571,7 @@ const LotsPage = ({ showToast }) => {
 
         {/* Right Column: Ledger List */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8 }}>
             Stock Records Ledger
           </h3>
           
@@ -584,7 +584,7 @@ const LotsPage = ({ showToast }) => {
               const shortage = lot.qty_sent - lot.received_qty;
               const isComplete = lot.status === 'Complete';
               return (
-                <div key={lot.id} style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(255, 255, 255, 0.06)', background: 'rgba(255, 255, 255, 0.015)', borderColor: isComplete ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.15)' }}>
+                <div key={lot.id} style={{ padding: 16, borderRadius: 12, border: '1px solid var(--card-border)', background: 'var(--card-bg)', borderColor: isComplete ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.15)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
                     <div>
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Client: {lot.client_name}</span>
@@ -595,7 +595,7 @@ const LotsPage = ({ showToast }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button 
                         onClick={() => handleViewLotTransactions(lot.id, lot.lot_no)}
-                        style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', padding: 4 }}
+                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: 4 }}
                         title="View Audit Trail Logs"
                       >
                         <History size={16} />
@@ -633,7 +633,7 @@ const LotsPage = ({ showToast }) => {
                           style={{ 
                             background: 'none', 
                             border: 'none', 
-                            color: isComplete ? '#ffd400' : '#475569', 
+                            color: isComplete ? 'var(--color-primary)' : '#475569', 
                             cursor: (isComplete && user?.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
                             padding: 4 
                           }}
@@ -657,10 +657,10 @@ const LotsPage = ({ showToast }) => {
                     </div>
                   )}
 
-                  <div className="lot-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, fontSize: '0.75rem', textAlign: 'center', background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
+                  <div className="lot-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 4, fontSize: '0.75rem', textAlign: 'center', background: 'var(--card-bg)', padding: 10, borderRadius: 8, marginBottom: 12 }}>
                     <div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Inward</div>
-                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>{lot.received_qty}</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-main)' }}>{lot.received_qty}</div>
                     </div>
                     <div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Outward</div>
@@ -676,7 +676,7 @@ const LotsPage = ({ showToast }) => {
                     </div>
                     <div>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.58rem', textTransform: 'uppercase' }}>Available</div>
-                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: lot.available > 0 ? '#ffd400' : '#64748b' }}>{lot.available}</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: lot.available > 0 ? 'var(--color-primary)' : '#64748b' }}>{lot.available}</div>
                     </div>
                   </div>
 
@@ -695,7 +695,7 @@ const LotsPage = ({ showToast }) => {
                         padding: '6px 8px', 
                         fontSize: '0.72rem', 
                         background: 'rgba(16, 185, 129, 0.1)', 
-                        border: '1px solid rgba(16, 185, 129, 0.25)', 
+                        border: '1px solid var(--card-border)', 
                         color: '#10b981',
                         cursor: (isComplete && user?.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
                         opacity: (isComplete && user?.role !== 'Superadmin') ? 0.3 : 1
@@ -716,7 +716,7 @@ const LotsPage = ({ showToast }) => {
                         padding: '6px 8px', 
                         fontSize: '0.72rem', 
                         background: 'rgba(239, 68, 68, 0.1)', 
-                        border: '1px solid rgba(239, 68, 68, 0.25)', 
+                        border: '1px solid var(--card-border)', 
                         color: '#ef4444',
                         cursor: (isComplete && user?.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
                         opacity: (isComplete && user?.role !== 'Superadmin') ? 0.3 : 1
@@ -737,7 +737,7 @@ const LotsPage = ({ showToast }) => {
                         padding: '6px 8px', 
                         fontSize: '0.72rem', 
                         background: 'rgba(59, 130, 246, 0.1)', 
-                        border: '1px solid rgba(59, 130, 246, 0.25)', 
+                        border: '1px solid var(--card-border)', 
                         color: '#3b82f6',
                         cursor: (isComplete && user?.role !== 'Superadmin') ? 'not-allowed' : 'pointer',
                         opacity: (isComplete && user?.role !== 'Superadmin') ? 0.3 : 1
@@ -753,7 +753,7 @@ const LotsPage = ({ showToast }) => {
 
           {/* Pagination Controls */}
           {totalStockPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, background: 'rgba(255,255,255,0.02)', padding: 10, borderRadius: 12, border: '1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, background: 'var(--card-bg)', padding: 10, borderRadius: 12, border: '1px solid var(--card-border)' }}>
               <button 
                 onClick={() => setCurrentStockPage(prev => Math.max(prev - 1, 1))} 
                 disabled={currentStockPage === 1}

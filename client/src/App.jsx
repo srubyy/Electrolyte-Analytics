@@ -38,9 +38,9 @@ function App() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0b0f19', color: '#ffd400', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#0b0f19', color: 'var(--color-primary)', fontFamily: 'sans-serif' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ border: '4px solid rgba(255, 212, 0, 0.1)', borderLeftColor: '#ffd400', borderRadius: '50%', width: 40, height: 40, animation: 'spin 1s linear infinite', margin: '0 auto 16px auto' }}></div>
+          <div style={{ border: '4px solid rgba(255, 212, 0, 0.1)', borderLeftColor: 'var(--color-primary)', borderRadius: '50%', width: 40, height: 40, animation: 'spin 1s linear infinite', margin: '0 auto 16px auto' }}></div>
           <style>{`
             @keyframes spin {
               0% { transform: rotate(0deg); }

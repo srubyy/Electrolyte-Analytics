@@ -70,7 +70,7 @@ const PresetRemarksSelect = ({ stepNo, stepInputs, setStepInputs }) => {
             setStepInputs(prev => ({ ...prev, remarks: val }));
           }
         }}
-        style={{ padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff', borderRadius: 8, width: '100%', cursor: 'pointer', marginBottom: 8 }}
+        style={{ padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 8, width: '100%', cursor: 'pointer', marginBottom: 8 }}
       >
         <option value="">-- Select Standard Remark --</option>
         {presets.map((preset, idx) => (
@@ -86,7 +86,7 @@ const PresetRemarksSelect = ({ stepNo, stepInputs, setStepInputs }) => {
           placeholder="Type custom remark here..."
           value={stepInputs.remarks || ''}
           onChange={e => setStepInputs(prev => ({ ...prev, remarks: e.target.value }))}
-          style={{ width: '100%', padding: '8px 12px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff', borderRadius: 8 }}
+          style={{ width: '100%', padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 8 }}
         />
       )}
     </div>

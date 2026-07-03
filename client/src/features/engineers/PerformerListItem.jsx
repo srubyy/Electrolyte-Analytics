@@ -4,7 +4,7 @@ const PerformerListItem = ({ leader, index }) => {
   const rankClass = index === 0 ? 'rank-1' : index === 1 ? 'rank-2' : index === 2 ? 'rank-3' : 'rank-other';
 
   return (
-    <div className="leader-item glass-panel" style={{ background: 'rgba(255,255,255,0.01)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.02)', margin: 0 }}>
+    <div className="leader-item glass-panel" style={{ background: 'var(--card-bg)', borderRadius: 12, border: '1px solid var(--card-border)', margin: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span className={`leader-rank ${rankClass}`}>{index + 1}</span>
         <div className="leader-profile">

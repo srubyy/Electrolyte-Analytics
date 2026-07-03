@@ -5,13 +5,13 @@ const EmailModal = ({ isOpen, onClose, onSubmit, selectedLotForEmail, form, setF
   if (!isOpen || !selectedLotForEmail) return null;
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: 1050, maxHeight: '90vh', overflowY: 'auto', padding: 24, borderColor: '#ffd400', background: '#111827', display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 20 }}>
+      <div className="glass-panel" style={{ width: '100%', maxWidth: 1050, maxHeight: '90vh', overflowY: 'auto', padding: 24, borderColor: 'var(--color-primary)', background: '#111827', display: 'flex', flexDirection: 'column', gap: 16 }}>
         
         {/* Modal Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--card-border)', paddingBottom: 12 }}>
           <div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffd400', margin: 0 }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', margin: 0 }}>
               📧 Discrepancy Email Dispatcher Center
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -121,7 +121,7 @@ const EmailModal = ({ isOpen, onClose, onSubmit, selectedLotForEmail, form, setF
                   type="submit" 
                   className="btn btn-primary" 
                   disabled={emailSending}
-                  style={{ flex: 1.5, background: '#ffd400', color: '#000000', fontWeight: 800, padding: '10px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  style={{ flex: 1.5, background: 'var(--color-primary)', color: '#000000', fontWeight: 800, padding: '10px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                 >
                   {emailSending ? 'Sending simulated email...' : '✉️ Dispatch Simulated Email'}
                 </button>
@@ -133,7 +133,7 @@ const EmailModal = ({ isOpen, onClose, onSubmit, selectedLotForEmail, form, setF
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <h4 style={{ fontSize: '0.9rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-primary)', letterSpacing: 0.5, margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>2. Live HTML compiled Preview</span>
-              <span style={{ fontSize: '0.65rem', color: '#ffd400', background: 'rgba(255,212,0,0.1)', padding: '2px 8px', borderRadius: 4, textTransform: 'none' }}>Hot Reloading</span>
+              <span style={{ fontSize: '0.65rem', color: 'var(--color-primary)', background: 'rgba(255,212,0,0.1)', padding: '2px 8px', borderRadius: 4, textTransform: 'none' }}>Hot Reloading</span>
             </h4>
 
             {/* Email Client UI Mockup Container */}
@@ -162,11 +162,11 @@ const EmailModal = ({ isOpen, onClose, onSubmit, selectedLotForEmail, form, setF
                 <table style={{ width: '100%', borderCollapse: 'collapse', margin: '20px 0', fontSize: '0.78rem', textRendering: 'optimizeLegibility' }}>
                   <thead>
                     <tr>
-                      <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Challan No. / Ref</th>
-                      <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Challan Qty</th>
-                      <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Received Qty</th>
-                      <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Diff</th>
-                      <th style={{ backgroundColor: '#ffd400', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Discrepancy Type</th>
+                      <th style={{ backgroundColor: 'var(--color-primary)', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Challan No. / Ref</th>
+                      <th style={{ backgroundColor: 'var(--color-primary)', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Challan Qty</th>
+                      <th style={{ backgroundColor: 'var(--color-primary)', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Received Qty</th>
+                      <th style={{ backgroundColor: 'var(--color-primary)', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Diff</th>
+                      <th style={{ backgroundColor: 'var(--color-primary)', color: '#000000', fontWeight: 'bold', border: '1px solid #dddddd', padding: 8, textAlign: 'center' }}>Discrepancy Type</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -179,7 +179,7 @@ const EmailModal = ({ isOpen, onClose, onSubmit, selectedLotForEmail, form, setF
                         padding: 8, 
                         textAlign: 'center', 
                         fontWeight: 'bold', 
-                        color: '#ffffff', 
+                        color: 'var(--text-main)', 
                         backgroundColor: selectedLotForEmail.received_qty < selectedLotForEmail.qty_sent ? '#ef4444' : '#fb923c' 
                       }}>
                         {selectedLotForEmail.received_qty < selectedLotForEmail.qty_sent 

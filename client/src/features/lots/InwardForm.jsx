@@ -10,7 +10,7 @@ const InwardForm = ({ onSubmit, onCancel, newLot, setNewLot, managerSignOff, set
 
   return (
     <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: 12, color: '#ffd400' }}>New Inward Lot Shipment</h3>
+      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: 12, color: 'var(--color-primary)' }}>New Inward Lot Shipment</h3>
       <form onSubmit={onSubmit}>
         <div className="form-group">
           <label>Lot Number</label>
@@ -89,7 +89,7 @@ const InwardForm = ({ onSubmit, onCancel, newLot, setNewLot, managerSignOff, set
                 🚫 BLOCKER: You have Team Lead privileges. Discrepancy requires a Manager or Superadmin to inward.
               </div>
             ) : (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', cursor: 'pointer', color: '#fff', fontWeight: 600 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem', cursor: 'pointer', color: 'var(--text-main)', fontWeight: 600 }}>
                 <input 
                   type="checkbox" 
                   checked={managerSignOff} 

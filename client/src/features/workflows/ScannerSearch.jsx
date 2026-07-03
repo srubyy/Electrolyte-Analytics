@@ -52,7 +52,7 @@ const ScannerSearch = ({
                   setAssignForm(prev => ({ ...prev, lot_no: barcodeSearch.substring(6, 8) || '', sr_no: barcodeSearch.substring(18, 21) || '' }));
                   setShowAssignForm(true);
                 }}
-                style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '0.75rem', fontWeight: 700 }}
+                style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '0.75rem', fontWeight: 700 }}
               >
                 Register Panel Now
               </button>
@@ -67,7 +67,7 @@ const ScannerSearch = ({
             <span 
               key={scan} 
               onClick={() => { setBarcodeSearch(scan); setTimeout(() => handlePanelSearch(), 50); }}
-              style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.03)', color: '#ffd400', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)', fontFamily: 'monospace' }}
+              style={{ fontSize: '0.65rem', background: 'var(--card-bg)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--card-border)', fontFamily: 'monospace' }}
             >
               {scan}
             </span>
@@ -77,9 +77,9 @@ const ScannerSearch = ({
 
       {/* Assign Panel form (if active) */}
       {showAssignForm && (
-        <div className="glass-panel" style={{ padding: 16, borderColor: '#ffd400', background: 'rgba(255, 212, 0, 0.02)' }}>
+        <div className="glass-panel" style={{ padding: 16, borderColor: 'var(--color-primary)', background: 'rgba(255, 212, 0, 0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ffd400', margin: 0 }}>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', margin: 0 }}>
               🆕 Register & Assign Panel
             </h3>
             <button 
@@ -136,7 +136,7 @@ const ScannerSearch = ({
                 </select>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary" style={{ marginTop: 6, background: '#ffd400', color: '#000', fontWeight: 800 }}>
+            <button type="submit" className="btn btn-primary" style={{ marginTop: 6, background: 'var(--color-primary)', color: '#000', fontWeight: 800 }}>
               Submit Registration
             </button>
           </form>
@@ -149,7 +149,7 @@ const ScannerSearch = ({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div>
               <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Active Scan Target</span>
-              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
                 {searchedPanel.panel.barcode}
               </h3>
             </div>
@@ -158,16 +158,16 @@ const ScannerSearch = ({
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: '0.72rem', background: 'rgba(255,255,255,0.015)', padding: 10, borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)', marginBottom: 12 }}>
-            <div>Lot Number: <strong style={{ color: '#fff' }}>{searchedPanel.panel.lot_no}</strong></div>
-            <div>Serial Number: <strong style={{ color: '#fff' }}>#{searchedPanel.panel.sr_no}</strong></div>
-            <div>Component Side: <strong style={{ color: '#fff' }}>{searchedPanel.panel.side} Side</strong></div>
-            <div>Current Stage: <strong style={{ color: '#ffd400' }}>Step {searchedPanel.panel.current_step}</strong></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: '0.72rem', background: 'var(--card-bg)', padding: 10, borderRadius: 8, border: '1px solid var(--card-border)', marginBottom: 12 }}>
+            <div>Lot Number: <strong style={{ color: 'var(--text-main)' }}>{searchedPanel.panel.lot_no}</strong></div>
+            <div>Serial Number: <strong style={{ color: 'var(--text-main)' }}>#{searchedPanel.panel.sr_no}</strong></div>
+            <div>Component Side: <strong style={{ color: 'var(--text-main)' }}>{searchedPanel.panel.side} Side</strong></div>
+            <div>Current Stage: <strong style={{ color: 'var(--color-primary)' }}>Step {searchedPanel.panel.current_step}</strong></div>
           </div>
 
           {/* Rework Info Warning */}
           {searchedPanel.rework_info && (
-            <div style={{ fontSize: '0.7rem', color: '#f87171', background: 'rgba(239, 68, 68, 0.08)', padding: 8, borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 12 }}>
+            <div style={{ fontSize: '0.7rem', color: '#f87171', background: 'rgba(239, 68, 68, 0.08)', padding: 8, borderRadius: 6, border: '1px solid var(--card-border)', display: 'flex', alignItems: 'flex-start', gap: 6, marginBottom: 12 }}>
               <ShieldAlert size={14} style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
                 <strong>⚠️ REWORK DIRECTIVE AT STEP {searchedPanel.rework_info.step_no}:</strong>
@@ -181,7 +181,7 @@ const ScannerSearch = ({
 
           {/* Vetting Lock Status */}
           {searchedPanel.is_locked ? (
-            <div style={{ fontSize: '0.72rem', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.08)', padding: 10, borderRadius: 8, border: '1px solid rgba(59, 130, 246, 0.15)', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.72rem', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.08)', padding: 10, borderRadius: 8, border: '1px solid var(--card-border)', textAlign: 'center' }}>
               ⏳ VETTING CLEARANCE IN PROGRESS
               <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
                 This step log is currently in the Quality Clearance Queue awaiting sign-off.
@@ -225,9 +225,9 @@ const ScannerSearch = ({
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 150, overflowY: 'auto' }}>
                 {searchedPanel.activities.map((act, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '0.7rem', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: 6 }}>
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '0.7rem', borderBottom: '1px solid var(--card-border)', paddingBottom: 6 }}>
                     <div>
-                      <div style={{ color: '#fff' }}><strong>Step {act.step_no}: {act.step_name}</strong></div>
+                      <div style={{ color: 'var(--text-main)' }}><strong>Step {act.step_no}: {act.step_name}</strong></div>
                       {act.remark && <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 1 }}>"{act.remark}"</div>}
                       <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', marginTop: 2 }}>
                         By: {act.engineer_name} | {new Date(act.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

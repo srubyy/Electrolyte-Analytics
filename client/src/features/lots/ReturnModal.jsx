@@ -5,7 +5,7 @@ const ReturnModal = ({ isOpen, onClose, onSubmit, stockData, user, form, setForm
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#ef4444', background: '#111827' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ef4444' }}>Record Returned Stock</h3>
@@ -64,7 +64,7 @@ const ReturnModal = ({ isOpen, onClose, onSubmit, stockData, user, form, setForm
             />
           </div>
           <div className="metrics-grid">
-            <button type="submit" className="btn" style={{ background: '#ef4444', color: '#fff' }}>Record Return</button>
+            <button type="submit" className="btn" style={{ background: '#ef4444', color: 'var(--text-main)' }}>Record Return</button>
             <button 
               type="button" 
               onClick={onClose} 

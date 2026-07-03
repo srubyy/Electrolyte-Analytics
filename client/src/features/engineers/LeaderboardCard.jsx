@@ -12,8 +12,8 @@ const LeaderboardCard = ({ leaderboardData }) => {
 
   return (
     <div>
-      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 20 }}>Monthly Top Performers</h3>
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 10, height: 160, background: 'rgba(255,255,255,0.01)', borderRadius: 16, padding: 10 }}>
+      <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 20 }}>Monthly Top Performers</h3>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: 10, height: 160, background: 'var(--card-bg)', borderRadius: 16, padding: 10 }}>
         
         {/* Rank 2 (Silver) */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>

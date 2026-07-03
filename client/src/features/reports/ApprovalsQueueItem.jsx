@@ -2,7 +2,7 @@ import React from 'react';
 
 const ApprovalsQueueItem = ({ log, user, onTLApprove, onManagerApprove, onReject }) => {
   return (
-    <div style={{ padding: 16, borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)' }}>
+    <div style={{ padding: 16, borderRadius: 12, border: '1px solid var(--card-border)', background: 'var(--card-bg)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 10 }}>
         <div>
           <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>ENGINEER: {log.engineer_name}</span>
@@ -13,10 +13,10 @@ const ApprovalsQueueItem = ({ log, user, onTLApprove, onManagerApprove, onReject
         </span>
       </div>
 
-      <div style={{ padding: 10, background: 'rgba(255,255,255,0.02)', borderRadius: 8, fontSize: '0.78rem', marginBottom: 12 }}>
+      <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, fontSize: '0.78rem', marginBottom: 12 }}>
         <div><strong>Step {log.step_no}:</strong> {log.step_name}</div>
         {log.remark && <div style={{ fontStyle: 'italic', marginTop: 4 }}>"{log.remark}"</div>}
-        {log.team_lead_name && <div style={{ fontSize: '0.65rem', color: '#ffd400', marginTop: 4 }}>Approved by TL: {log.team_lead_name}</div>}
+        {log.team_lead_name && <div style={{ fontSize: '0.65rem', color: 'var(--color-primary)', marginTop: 4 }}>Approved by TL: {log.team_lead_name}</div>}
       </div>
 
       {/* Approval Actions */}

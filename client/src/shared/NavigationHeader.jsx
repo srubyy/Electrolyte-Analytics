@@ -7,7 +7,7 @@ const NavigationHeader = ({ view, setView, showToast }) => {
   if (!user) return null;
 
   return (
-    <header className="app-top-header">
+    <header className="app-navigation">
       <div className="app-brand">
         <span className="app-brand-dot"></span>
         <h1 className="app-brand-title">Electrolyte Solutions</h1>
@@ -20,7 +20,7 @@ const NavigationHeader = ({ view, setView, showToast }) => {
             onClick={() => setView('dashboard')} 
             className={`app-nav-tab ${view === 'dashboard' ? 'active' : ''}`}
           >
-            <LayoutDashboard size={14} /> Dashboard
+            <LayoutDashboard size={18} /> Dashboard
           </button>
         )}
         {user.role !== 'Employee' && (
@@ -28,59 +28,58 @@ const NavigationHeader = ({ view, setView, showToast }) => {
             onClick={() => setView('stock')} 
             className={`app-nav-tab ${view === 'stock' ? 'active' : ''}`}
           >
-            <Package size={14} /> Stock Summary
+            <Package size={18} /> Stock Summary
           </button>
         )}
         <button 
           onClick={() => setView('repair')} 
           className={`app-nav-tab ${view === 'repair' ? 'active' : ''}`}
         >
-          <Wrench size={14} /> Repair Terminal
+          <Wrench size={18} /> Repair Terminal
         </button>
         {user.role !== 'Employee' && (
           <button 
             onClick={() => setView('approvals')} 
             className={`app-nav-tab ${view === 'approvals' ? 'active' : ''}`}
           >
-            <ShieldCheck size={14} /> Quality Clearance
+            <ShieldCheck size={18} /> Quality Clearance
           </button>
         )}
         <button 
           onClick={() => setView('leaderboard')} 
           className={`app-nav-tab ${view === 'leaderboard' ? 'active' : ''}`}
         >
-          <Trophy size={14} /> Leaderboard
+          <Trophy size={18} /> Leaderboard
         </button>
         {user.role === 'Superadmin' && (
           <button 
             onClick={() => setView('users')} 
             className={`app-nav-tab ${view === 'users' ? 'active' : ''}`}
           >
-            <Users size={14} /> Users
+            <Users size={18} /> Users
           </button>
         )}
       </nav>
 
-      {/* Header Right Profile Actions Widget */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {/* Profile Actions Widget */}
+      <div className="header-profile-widget">
+        <div className="profile-info">
           <img 
             src={user.avatar || "https://api.dicebear.com/7.x/adventurer/svg?seed=Operator"} 
             alt="Operator avatar" 
-            className="leader-avatar"
-            style={{ width: 32, height: 32, border: '2px solid var(--color-primary)', margin: 0 }}
+            className="profile-avatar"
           />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }} className="desktop-only-flex">
-            <span style={{ fontSize: '0.8rem', fontWeight: 800 }}>{user.name}</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--color-primary)', textTransform: 'uppercase', fontWeight: 700 }}>{user.role}</span>
+          <div className="profile-details desktop-only-flex">
+            <span className="profile-name">{user.name}</span>
+            <span className="profile-role">{user.role}</span>
           </div>
         </div>
         
         <button 
           onClick={() => { logout(); showToast('Logged out successfully!'); }} 
-          style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', padding: '6px 12px', borderRadius: '30px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}
+          className="logout-btn"
         >
-          <LogOut size={12} /> Logout
+          <LogOut size={14} /> Logout
         </button>
       </div>
     </header>

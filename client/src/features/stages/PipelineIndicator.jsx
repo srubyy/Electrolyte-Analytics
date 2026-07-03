@@ -41,7 +41,7 @@ const PipelineIndicator = ({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-              <span style={{ fontSize: '0.7rem', color: isActive ? '#ffd400' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</span>
+              <span style={{ fontSize: '0.7rem', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</span>
               <span 
                 onClick={(e) => {
                   e.stopPropagation();
@@ -49,9 +49,9 @@ const PipelineIndicator = ({
                 }}
                 style={{
                   fontSize: '0.62rem',
-                  color: '#ffd400',
+                  color: 'var(--color-primary)',
                   background: 'rgba(255, 212, 0, 0.1)',
-                  border: '1px solid rgba(255, 212, 0, 0.2)',
+                  border: '1px solid var(--card-border)',
                   borderRadius: 4,
                   padding: '1px 5px',
                   cursor: 'pointer',

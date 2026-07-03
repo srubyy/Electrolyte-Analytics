@@ -91,39 +91,43 @@ body {
 }
 
 /* Widescreen Responsive Web App Containers */
+body {
+  background: var(--bg-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+  margin: 0;
+}
+
 .app-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background: radial-gradient(circle at top left, #1e293b 0%, #0b0f19 80%);
+  position: relative;
+  width: 100%;
 }
 
 .app-main-content {
   flex: 1;
   width: 100%;
-  max-width: 1650px;
-  /* Increased from 1300px to expand layout and drastically reduce border waste */
-  margin: 0 auto;
-  padding: 24px 32px 80px 32px;
-  /* Adjusted padding to utilize the screen real estate more beautifully */
+  margin: 0;
+  padding: 24px 16px 80px 16px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
-/* Sticky Sticky Glassmorphic Top Header Navigation */
-.app-top-header {
+/* Sidebar & Navigation Styles */
+.app-navigation {
   position: sticky;
   top: 0;
   z-index: 2000;
-  background: rgba(11, 15, 25, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(255, 212, 0, 0.08);
-  padding: 14px 24px;
+  background: #0b0f19; /* Solid background to prevent backdrop bleed */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
 }
 
 .app-brand {
@@ -150,45 +154,192 @@ body {
   box-shadow: 0 0 10px var(--color-primary);
 }
 
-/* Header Horizontal Desktop Navigation Tabs */
 .app-nav-tabs {
   display: none;
   gap: 8px;
 }
 
-@media (min-width: 768px) {
-  .app-nav-tabs {
-    display: flex;
-  }
-}
-
 .app-nav-tab {
   background: none;
-  border: 1px solid transparent;
+  border: none;
   color: var(--text-muted);
   font-size: 0.8rem;
   font-weight: 700;
-  padding: 8px 16px;
-  border-radius: 20px;
+  padding: 12px 14px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  outline: none;
+  white-space: nowrap;
 }
 
 .app-nav-tab:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .app-nav-tab.active {
   color: var(--color-primary);
   background: var(--color-primary-glow);
-  border-color: rgba(255, 212, 0, 0.18);
+  box-shadow: inset 3px 0 0 var(--color-primary);
   text-shadow: 0 0 10px rgba(255, 212, 0, 0.2);
+}
+
+/* Profile Widget - Default Mobile Styles */
+.header-profile-widget {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.profile-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--color-primary);
+  object-fit: cover;
+}
+
+.profile-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.profile-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.profile-role {
+  font-size: 0.6rem;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.logout-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid var(--card-border);
+  color: #ef4444;
+  padding: 6px 12px;
+  border-radius: 30px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+/* Sidebar Desktop Conversion */
+@media (min-width: 768px) {
+  .app-layout {
+    flex-direction: row;
+  }
+  
+  .app-navigation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 32px 20px;
+    border-bottom: none;
+    border-right: none; /* Completely removed to prevent any fine line artifacts */
+    box-shadow: none; /* Removed shadow to prevent it casting over the page */
+    z-index: 50;
+    overflow-y: auto; /* Allow scrolling if screen is too small */
+    overflow-x: hidden;
+    
+    /* Hardware acceleration to fix WebKit backdrop-filter edge artifacts on hover */
+    transform: translate3d(0, 0, 0);
+    -webkit-transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    
+    /* Hide scrollbar to prevent overlay scrollbar lines on hover */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .app-navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-main-content {
+    margin-left: 280px;
+    width: calc(100% - 280px); /* 100% of parent, NOT 100vw to prevent scrollbar overflow artifacts */
+    padding: 32px 40px; 
+    flex: 1;
+    min-width: 0; /* Prevent flex children from blowing out width */
+  }
+
+  .app-brand {
+    margin-bottom: 40px;
+    padding: 0 8px;
+  }
+
+  .app-nav-tabs {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+    flex: 1;
+  }
+
+  .app-nav-tab {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 12px 18px;
+  }
+
+  .header-profile-widget {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    margin-top: auto;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    gap: 12px;
+  }
+  
+  .profile-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .profile-name {
+    font-size: 0.85rem;
+  }
+  
+  .logout-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+  }
 }
 
 /* View Section Title Styles */
@@ -775,7 +926,7 @@ textarea:focus {
   }
 
   /* ---- Top header: stack brand + profile on small screens ---- */
-  .app-top-header {
+  .app-navigation {
     flex-wrap: wrap;
     gap: 10px;
     padding: 10px 14px;

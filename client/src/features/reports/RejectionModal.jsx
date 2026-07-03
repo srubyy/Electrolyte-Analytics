@@ -4,7 +4,7 @@ const RejectionModal = ({ isOpen, onClose, onSubmit, rejectionReason, setRejecti
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#ef4444', background: '#111827' }}>
         <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: 12, color: '#ef4444' }}>Quality Clearance Rejection</h3>
         
@@ -20,7 +20,7 @@ const RejectionModal = ({ isOpen, onClose, onSubmit, rejectionReason, setRejecti
             />
           </div>
           <div className="metrics-grid">
-            <button type="submit" className="btn" style={{ background: '#ef4444', color: '#fff' }}>Submit Rejection</button>
+            <button type="submit" className="btn" style={{ background: '#ef4444', color: 'var(--text-main)' }}>Submit Rejection</button>
             <button 
               type="button" 
               onClick={onClose} 

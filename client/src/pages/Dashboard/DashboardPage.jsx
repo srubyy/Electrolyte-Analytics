@@ -51,11 +51,11 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
       <div className="app-header">
         <div>
           <span className="app-subtitle">Electrolyte Solutions</span>
-          <h1 className="app-title"><LayoutDashboard size={20} color="#ffd400" /> Dashboard</h1>
+          <h1 className="app-title"><LayoutDashboard size={20} color='var(--color-primary)' /> Dashboard</h1>
         </div>
         <button 
           onClick={() => { fetchDashboard(); showToast("Visual board updated!"); }} 
-          style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer' }}
         >
           <RefreshCw size={18} />
         </button>
@@ -64,23 +64,23 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
       <div className="widescreen-grid">
         {/* Left Column: KPI Metrics & Critical Alerts */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8 }}>Production KPI Metrics</h3>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8 }}>Production KPI Metrics</h3>
           
           {dashboardData && (
             <div className="metrics-grid" style={{ marginBottom: 0 }}>
-              <div className="metric-card glass-panel blue" style={{ border: 'none', background: 'rgba(255,255,255,0.02)' }}>
+              <div className="metric-card glass-panel blue" style={{ border: 'none', background: 'var(--card-bg)' }}>
                 <span className="metric-label">Inward Lots</span>
                 <h3 className="metric-val">{dashboardData.metrics.total_lots}</h3>
               </div>
-              <div className="metric-card glass-panel" style={{ border: 'none', background: 'rgba(255,255,255,0.02)' }}>
+              <div className="metric-card glass-panel" style={{ border: 'none', background: 'var(--card-bg)' }}>
                 <span className="metric-label">Total Received</span>
                 <h3 className="metric-val">{dashboardData.metrics.total_received}</h3>
               </div>
-              <div className="metric-card glass-panel warning" style={{ border: 'none', background: 'rgba(255,255,255,0.02)' }}>
+              <div className="metric-card glass-panel warning" style={{ border: 'none', background: 'var(--card-bg)' }}>
                 <span className="metric-label">In Pipeline</span>
                 <h3 className="metric-val">{dashboardData.metrics.total_pending}</h3>
               </div>
-              <div className="metric-card glass-panel success" style={{ border: 'none', background: 'rgba(255,255,255,0.02)' }}>
+              <div className="metric-card glass-panel success" style={{ border: 'none', background: 'var(--card-bg)' }}>
                 <span className="metric-label">Dispatched OK</span>
                 <h3 className="metric-val">{dashboardData.metrics.total_dispatched}</h3>
               </div>
@@ -107,33 +107,33 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
               </h4>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                   <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Line Yield Rate</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                     <span style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981' }}>98.2%</span>
-                    <div style={{ flex: 1, height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
+                    <div style={{ flex: 1, height: 4, background: 'var(--card-bg)', borderRadius: 2 }}>
                       <div style={{ width: '98.2%', height: '100%', background: '#10b981', borderRadius: 2 }}></div>
                     </div>
                   </div>
                 </div>
                 
-                <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                   <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Active Shift Output</span>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', marginTop: 4 }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: 4 }}>
                     {dashboardData ? dashboardData.metrics.total_dispatched : 0} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>OK</span>
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                   <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Vetting Speed</span>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginTop: 4 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)', marginTop: 4 }}>
                     ⚡ Fast <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>(&lt;1.2m/step)</span>
                   </div>
                 </div>
                 
-                <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+                <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                   <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Operator Stations</span>
                   <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#38bdf8', marginTop: 4 }}>
                     {engineers.length} Active / Online
@@ -149,13 +149,13 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
               <History size={14} /> Live Line Activity Log
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'rgba(255,255,255,0.01)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.02)' }}>
-                <span style={{ fontFamily: 'monospace', color: '#ffd400' }}>ESRP2P5918E26128R0100</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'var(--card-bg)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+                <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>ESRP2P5918E26128R0100</span>
                 <span style={{ fontSize: '0.62rem', color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>QC PASS</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'rgba(255,255,255,0.01)', padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.02)' }}>
-                <span style={{ fontFamily: 'monospace', color: '#ffd400' }}>ESRP2P5919E26128R0382</span>
-                <span style={{ fontSize: '0.62rem', color: '#ffd400', background: 'rgba(255, 212, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>REWORKED</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.72rem', background: 'var(--card-bg)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--card-border)' }}>
+                <span style={{ fontFamily: 'monospace', color: 'var(--color-primary)' }}>ESRP2P5919E26128R0382</span>
+                <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', background: 'rgba(255, 212, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>REWORKED</span>
               </div>
             </div>
           </div>
@@ -203,7 +203,7 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
                     <span className="step-name">{step.step_name}</span>
                   </div>
                   <span className="step-count" style={{
-                    color: step.count > 10 ? '#fff' : step.count > 0 ? '#ffd400' : '#475569',
+                    color: step.count > 10 ? '#fff' : step.count > 0 ? 'var(--color-primary)' : '#475569',
                     background: step.count > 10 ? '#ef4444' : 'rgba(255,255,255,0.03)'
                   }}>
                     {step.count}

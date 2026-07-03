@@ -14,7 +14,7 @@ const StationChecklist = ({
   return (
     <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
       <h4 style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-        <ShieldAlert size={14} color="#ffd400" /> ESD Station Safety Readiness
+        <ShieldAlert size={14} color='var(--color-primary)' /> ESD Station Safety Readiness
       </h4>
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -23,7 +23,7 @@ const StationChecklist = ({
             type="checkbox" 
             checked={esdWristStrap} 
             onChange={e => setEsdWristStrap(e.target.checked)} 
-            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#ffd400' }} 
+            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--color-primary)' }} 
           />
           <span>ESD Wrist Strap Connected (Tested &lt;1.0 MΩ)</span>
         </label>
@@ -32,7 +32,7 @@ const StationChecklist = ({
             type="checkbox" 
             checked={ionizerOn} 
             onChange={e => setIonizerOn(e.target.checked)} 
-            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#ffd400' }} 
+            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--color-primary)' }} 
           />
           <span>Clean Air Ionizer Operational</span>
         </label>
@@ -41,7 +41,7 @@ const StationChecklist = ({
             type="checkbox" 
             checked={esdMatGrounded} 
             onChange={e => setEsdMatGrounded(e.target.checked)} 
-            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#ffd400' }} 
+            style={{ width: 14, height: 14, cursor: 'pointer', accentColor: 'var(--color-primary)' }} 
           />
           <span>Anti-Static Desk Mat Properly Grounded</span>
         </label>

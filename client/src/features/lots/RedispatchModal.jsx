@@ -5,7 +5,7 @@ const RedispatchModal = ({ isOpen, onClose, onSubmit, stockData, user, form, set
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#3b82f6', background: '#111827' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3b82f6' }}>Record Returned Lot Redispatch</h3>
@@ -57,7 +57,7 @@ const RedispatchModal = ({ isOpen, onClose, onSubmit, stockData, user, form, set
             />
           </div>
           <div className="metrics-grid">
-            <button type="submit" className="btn" style={{ background: '#3b82f6', color: '#fff' }}>Record Redispatch</button>
+            <button type="submit" className="btn" style={{ background: '#3b82f6', color: 'var(--text-main)' }}>Record Redispatch</button>
             <button 
               type="button" 
               onClick={onClose} 

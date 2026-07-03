@@ -31,7 +31,7 @@ const ToastNotification = ({ notification }) => {
         borderRadius: '30px',
         fontSize: '0.8rem',
         fontWeight: 800,
-        color: '#fff',
+        color: 'var(--text-main)',
         display: 'flex',
         alignItems: 'center',
         gap: 8,

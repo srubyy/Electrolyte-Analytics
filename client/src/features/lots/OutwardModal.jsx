@@ -5,7 +5,7 @@ const OutwardModal = ({ isOpen, onClose, onSubmit, stockData, user, form, setFor
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
       <div className="glass-panel" style={{ width: '90%', maxWidth: 400, padding: 20, borderColor: '#10b981', background: '#111827' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981' }}>Record Outward Dispatch</h3>
@@ -57,7 +57,7 @@ const OutwardModal = ({ isOpen, onClose, onSubmit, stockData, user, form, setFor
             />
           </div>
           <div className="metrics-grid">
-            <button type="submit" className="btn" style={{ background: '#10b981', color: '#fff' }}>Record Dispatch</button>
+            <button type="submit" className="btn" style={{ background: '#10b981', color: 'var(--text-main)' }}>Record Dispatch</button>
             <button 
               type="button" 
               onClick={onClose} 

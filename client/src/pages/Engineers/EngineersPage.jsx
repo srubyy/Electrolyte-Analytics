@@ -37,11 +37,11 @@ const EngineersPage = ({ showToast }) => {
       <div className="app-header">
         <div>
           <span className="app-subtitle">Live Performer Scores</span>
-          <h1 className="app-title"><Trophy size={20} color="#ffd400" /> Leaderboard</h1>
+          <h1 className="app-title"><Trophy size={20} color='var(--color-primary)' /> Leaderboard</h1>
         </div>
         <button 
           onClick={() => { fetchLeaderboard(); showToast("Leaderboard recalculated!"); }} 
-          style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer' }}
           disabled={loading}
         >
           <RefreshCw size={18} className={loading ? 'spin' : ''} />
@@ -65,7 +65,7 @@ const EngineersPage = ({ showToast }) => {
 
         {/* Right Column: Full Leaderboard List */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8 }}>
             Employee Leaderboard
           </h3>
           <div className="leaderboard-list" style={{ flex: 1, overflowY: 'auto', maxHeight: '480px', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>

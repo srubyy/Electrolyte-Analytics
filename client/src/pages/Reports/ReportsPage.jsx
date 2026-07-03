@@ -109,11 +109,11 @@ const ReportsPage = ({ showToast }) => {
       <div className="app-header">
         <div>
           <span className="app-subtitle">Quality Clearance Queue</span>
-          <h1 className="app-title"><ShieldCheck size={20} color="#ffd400" /> Vetting Center</h1>
+          <h1 className="app-title"><ShieldCheck size={20} color='var(--color-primary)' /> Vetting Center</h1>
         </div>
         <button 
           onClick={() => { fetchApprovals(); showToast("Approvals list updated!"); }} 
-          style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer' }}
+          style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer' }}
           disabled={loading}
         >
           <RefreshCw size={18} className={loading ? 'spin' : ''} />
@@ -124,17 +124,17 @@ const ReportsPage = ({ showToast }) => {
         {/* Left Column: Quality Audit Metrics & Bottleneck Heatmap */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
-            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16 }}>Vetting Center Vitals</h3>
+            <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16 }}>Vetting Center Vitals</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                 <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Cleared Today</span>
                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', marginTop: 4 }}>
                   14 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 500 }}>Panels</span>
                 </div>
               </div>
-              <div style={{ padding: 10, background: 'rgba(255,255,255,0.015)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
                 <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Clearance Rate</span>
-                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#ffd400', marginTop: 4 }}>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: 4 }}>
                   98.6%
                 </div>
               </div>
@@ -150,7 +150,7 @@ const ReportsPage = ({ showToast }) => {
             </p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, border: '1px solid rgba(239, 68, 68, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ padding: 10, background: 'rgba(239, 68, 68, 0.05)', borderRadius: 8, border: '1px solid var(--card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <div>
                   <strong style={{ fontSize: '0.75rem', color: '#fca5a5' }}>Step 7 (QC Rework)</strong>
                   <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>High rate of Solder bridge failures</div>
@@ -158,7 +158,7 @@ const ReportsPage = ({ showToast }) => {
                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ef4444' }}>8 reworks</span>
               </div>
 
-              <div style={{ padding: 10, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, border: '1px solid rgba(245, 158, 11, 0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ padding: 10, background: 'rgba(245, 158, 11, 0.05)', borderRadius: 8, border: '1px solid var(--card-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <div>
                   <strong style={{ fontSize: '0.75rem', color: '#fcd34d' }}>Step 14 (Visual QC Vetting)</strong>
                   <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>Awaiting manager final sign-off</div>
@@ -205,12 +205,12 @@ const ReportsPage = ({ showToast }) => {
               <span style={{ fontSize: '0.62rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>RISK HIGH</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.7rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
                 <span style={{ fontFamily: 'monospace', color: '#fca5a5', fontWeight: 700 }}>ESRP2P5918E26128R0100</span>
                 <span style={{ color: '#ef4444', fontWeight: 800 }}>42 mins ago</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'rgba(255, 255, 255, 0.01)', borderRadius: 6, border: '1px solid rgba(255, 255, 255, 0.02)' }}>
-                <span style={{ fontFamily: 'monospace', color: '#fff' }}>ESRP2P5919E26128R0382</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: '6px 10px', background: 'var(--card-bg)', borderRadius: 6, border: '1px solid var(--card-border)' }}>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>ESRP2P5919E26128R0382</span>
                 <span style={{ color: 'var(--text-muted)' }}>18 mins ago</span>
               </div>
             </div>
@@ -219,15 +219,15 @@ const ReportsPage = ({ showToast }) => {
 
         {/* Right Column: Clearance Queue */}
         <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8 }}>
             Pending Clearance Queue ({approvalsData.length})
           </h3>
 
           <div style={{ flex: 1, overflowY: 'auto', maxHeight: '420px', paddingRight: 4, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {approvalsData.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-                <CheckCircle size={36} color="#ffd400" style={{ display: 'block', margin: '0 auto 12px auto', opacity: 0.8 }} />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fff', marginBottom: 6 }}>Clearance Queue Clear</h3>
+                <CheckCircle size={36} color='var(--color-primary)' style={{ display: 'block', margin: '0 auto 12px auto', opacity: 0.8 }} />
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: 6 }}>Clearance Queue Clear</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: 0, margin: 0 }}>
                   No pending shop floor logs are currently awaiting your verification approval.
                 </p>

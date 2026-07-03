@@ -14,7 +14,7 @@ const CloggedStepCard = ({ step, onClick }) => {
         <span className="step-name">{step.step_name}</span>
       </div>
       <span className="step-count" style={{
-        color: isClogged ? '#fff' : step.count > 0 ? '#ffd400' : '#475569',
+        color: isClogged ? '#fff' : step.count > 0 ? 'var(--color-primary)' : '#475569',
         background: isClogged ? '#ef4444' : 'rgba(255,255,255,0.03)'
       }}>
         {step.count}

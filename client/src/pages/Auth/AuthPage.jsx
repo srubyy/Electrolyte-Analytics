@@ -29,8 +29,8 @@ const AuthPage = ({ showToast }) => {
       <div style={{ width: '100%', maxWidth: 450 }}>
         <div style={{ textAlign: 'center', marginBottom: 30 }}>
           <span className="app-subtitle" style={{ fontSize: '0.75rem' }}>Factory Portal</span>
-          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-            <Lock color="#ffd400" size={24} />
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+            <Lock color='var(--color-primary)' size={24} />
             Security Guard
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>
@@ -39,7 +39,7 @@ const AuthPage = ({ showToast }) => {
         </div>
 
         <div className="glass-panel" style={{ padding: '24px 20px', borderColor: 'rgba(255, 212, 0, 0.25)' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8 }}>Sign In</h3>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: 16, borderBottom: '1px solid var(--card-border)', paddingBottom: 8 }}>Sign In</h3>
           
           <form onSubmit={handleLoginSubmit}>
             {loginError && (
@@ -77,11 +77,11 @@ const AuthPage = ({ showToast }) => {
         </div>
 
         {/* Login Helper Note */}
-        <div style={{ marginTop: 24, padding: 12, background: 'rgba(255,255,255,0.02)', borderRadius: 12, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-          <div style={{ fontWeight: 800, color: '#ffd400', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Lock size={10} /> Operator Cheat Sheet:</div>
-          - Team Lead Account: <span style={{ color: '#fff' }}>rahul.gupta@electrolytesoln.com</span> / <span style={{ color: '#fff' }}>Electrolyte2026!</span><br/>
-          - Super Admin Account: <span style={{ color: '#fff' }}>superadmin@electrolytesoln.com</span> / <span style={{ color: '#fff' }}>Electrolyte2026!</span><br/>
-          - Engineer Account: <span style={{ color: '#fff' }}>mayuri.s@electrolytesoln.com</span> / <span style={{ color: '#fff' }}>Electrolyte2026!</span>
+        <div style={{ marginTop: 24, padding: 12, background: 'var(--card-bg)', borderRadius: 12, fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+          <div style={{ fontWeight: 800, color: 'var(--color-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Lock size={10} /> Operator Cheat Sheet:</div>
+          - Team Lead Account: <span style={{ color: 'var(--text-main)' }}>rahul.gupta@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
+          - Super Admin Account: <span style={{ color: 'var(--text-main)' }}>superadmin@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
+          - Engineer Account: <span style={{ color: 'var(--text-main)' }}>mayuri.s@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span>
         </div>
       </div>
     </div>

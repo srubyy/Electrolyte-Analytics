@@ -129,9 +129,9 @@ const SettingsPage = ({ showToast }) => {
       <div className="app-header">
         <div>
           <span className="app-subtitle">Administrative Controls</span>
-          <h1 className="app-title"><Users size={20} color="#ffd400" /> User Management Control Center</h1>
+          <h1 className="app-title"><Users size={20} color='var(--color-primary)' /> User Management Control Center</h1>
         </div>
-        <button onClick={fetchAdminUsers} style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer' }} title="Refresh accounts directory">
+        <button onClick={fetchAdminUsers} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer' }} title="Refresh accounts directory">
           <RefreshCw size={18} className={adminUsersLoading ? 'spin' : ''} />
         </button>
       </div>
@@ -139,7 +139,7 @@ const SettingsPage = ({ showToast }) => {
       <div className="widescreen-grid">
         {/* Left Column: Create New Account Form */}
         <div className="glass-panel" style={{ padding: 20, height: 'fit-content' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Plus size={16} /> Provision New Team Member
           </h3>
           
@@ -181,8 +181,8 @@ const SettingsPage = ({ showToast }) => {
                 gap: '12px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#ffd400', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <ShieldCheck size={14} color="#ffd400" /> Automated Vitals Preview
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <ShieldCheck size={14} color='var(--color-primary)' /> Automated Vitals Preview
                   </span>
                   <span style={{ fontSize: '0.7rem', padding: '2px 8px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '12px', fontWeight: 700 }}>
                     Ready to Sync
@@ -190,26 +190,26 @@ const SettingsPage = ({ showToast }) => {
                 </div>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem', borderBottom: '1px solid var(--card-border)', paddingBottom: '6px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Display Name:</span>
-                    <span style={{ fontWeight: 700, color: '#fff' }}>{previewName || '—'}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{previewName || '—'}</span>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem', borderBottom: '1px solid var(--card-border)', paddingBottom: '6px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Login Email:</span>
-                    <span style={{ fontWeight: 700, color: '#ffd400', fontFamily: 'monospace' }}>{previewEmail || '—'}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontFamily: 'monospace' }}>{previewEmail || '—'}</span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: '0.8rem' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Login Password:</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-main)', fontFamily: 'monospace' }}>
                         {showPassword ? defaultPassword : '••••••••••••••••'}
                       </span>
                       <button 
                         type="button" 
                         onClick={() => setShowPassword(!showPassword)} 
-                        style={{ background: 'none', border: 'none', color: '#ffd400', cursor: 'pointer', padding: '0 4px', fontSize: '0.7rem', fontWeight: 700 }}
+                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: '0 4px', fontSize: '0.7rem', fontWeight: 700 }}
                       >
                         {showPassword ? 'HIDE' : 'SHOW'}
                       </button>
@@ -224,7 +224,7 @@ const SettingsPage = ({ showToast }) => {
               <select
                 value={newUserForm.role}
                 onChange={e => setNewUserForm({...newUserForm, role: e.target.value})}
-                style={{ width: '100%', padding: '10px 12px', background: 'rgba(0,0,0,0.4)', color: '#fff', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
+                style={{ width: '100%', padding: '10px 12px', background: 'var(--input-bg)', color: 'var(--text-main)', borderRadius: 8, border: '1px solid var(--card-border)', cursor: 'pointer' }}
               >
                 <option value="Employee">Employee (Operations Terminal Entry Only)</option>
                 <option value="Team Lead">Team Lead (Operation Entry + Step clearance Level 1)</option>
@@ -268,13 +268,13 @@ const SettingsPage = ({ showToast }) => {
 
         {/* Right Column: Accounts Directory */}
         <div className="glass-panel" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
             <Activity size={16} /> Active System Accounts ({adminUsers.length})
           </h3>
 
           {adminUsersLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px 0', flexDirection: 'column', gap: 12 }}>
-              <RefreshCw className="spin" size={24} color="#ffd400" />
+              <RefreshCw className="spin" size={24} color='var(--color-primary)' />
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Refreshing Directory...</span>
             </div>
           ) : (
@@ -310,7 +310,7 @@ const SettingsPage = ({ showToast }) => {
                               {item.role}
                             </span>
                             {isSelf && (
-                              <span style={{ fontSize: '0.55rem', background: 'rgba(255,255,255,0.08)', color: '#fff', padding: '1px 4px', borderRadius: 4 }}>
+                              <span style={{ fontSize: '0.55rem', background: 'var(--card-bg)', color: 'var(--text-main)', padding: '1px 4px', borderRadius: 4 }}>
                                 You
                               </span>
                             )}
