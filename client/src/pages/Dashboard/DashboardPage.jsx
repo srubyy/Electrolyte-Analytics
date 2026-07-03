@@ -182,7 +182,7 @@ const DashboardPage = ({ setView, setBarcodeSearch, showToast }) => {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--color-primary)' }}>
               <TrendingUp size={16} />
-              Step-wise Pending Panels
+              Step-wise Pending PCBs
             </h3>
             <div className="pipeline-list" style={{ flex: 1, overflowY: 'auto', maxHeight: '420px', paddingRight: 4 }}>
               {dashboardData?.pipeline.map((step) => (

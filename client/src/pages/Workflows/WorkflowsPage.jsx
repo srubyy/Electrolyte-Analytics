@@ -170,7 +170,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
           return [cleanBarcode, ...filtered].slice(0, 4);
         });
       } else {
-        setSearchError(data.error || 'Panel not found.');
+        setSearchError(data.error || 'PCB not found.');
       }
     } catch (err) {
       console.error(err);
@@ -195,7 +195,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Panel assigned successfully! Barcode: ${data.barcode}`);
+        showToast(`PCB assigned successfully! Barcode: ${data.barcode}`);
         setBarcodeSearch(data.barcode);
         setShowAssignForm(false);
         setAssignForm({ lot_no: '', sr_no: '', side: 'Left', assigned_engineer_id: engineers[0]?.id || '' });
@@ -205,11 +205,11 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
           panel: data.panel,
           activities: [{
             step_no: 1,
-            step_name: 'Panel Assign',
+            step_name: 'PCB Assign',
             timestamp: new Date().toISOString(),
             status: 'OK',
             engineer_name: engineers.find(eng => eng.id === assignedId)?.name || user.name,
-            remark: 'Initial registration and panel assignment'
+            remark: 'Initial registration and PCB assignment'
           }],
           is_locked: false,
           pending_info: null,
@@ -218,7 +218,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
 
         fetchLotProductionStats(productionLotId);
       } else {
-        showToast(data.error || 'Failed to assign panel', 'danger');
+        showToast(data.error || 'Failed to assign PCB', 'danger');
       }
     } catch (err) {
       console.error(err);
@@ -247,7 +247,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         if (data.pending) {
           showToast(data.message, 'warning');
         } else {
-          showToast(`Panel updated successfully to Step ${data.current_step}!`);
+          showToast(`PCB updated successfully to Step ${data.current_step}!`);
         }
         setRepairAction({ status: 'OK', remark: '' });
 
@@ -258,7 +258,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
 
         fetchLotProductionStats(productionLotId);
       } else {
-        showToast(data.error || 'Failed to update panel', 'danger');
+        showToast(data.error || 'Failed to update PCB', 'danger');
       }
     } catch (err) {
       console.error(err);
@@ -367,7 +367,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
     }
   };
 
-  // View Step active panels list details
+  // View Step active PCBs list details
   const fetchStepPanels = async (stepNo) => {
     setStepDetailLoading(true);
     setStepDetailPanels([]);
@@ -378,7 +378,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         const data = await res.json();
         setStepDetailPanels(data);
       } else {
-        showToast("Failed to load step panels", "danger");
+        showToast("Failed to load step PCBs", "danger");
       }
     } catch (err) {
       console.error(err);
@@ -1063,7 +1063,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
         </div>
       </div>
 
-      {/* Step Active Panels Detail Modal */}
+      {/* Step Active PCBs Detail Modal */}
       {showStepDetailModal && stepDetailStepNo && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--input-bg)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div className="glass-panel" style={{ width: '100%', maxWidth: 640, maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 20, borderColor: 'var(--color-primary)', background: '#0b0f19', borderRadius: 16 }}>
@@ -1088,7 +1088,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                 <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Search panels by barcode, lot, or engineer..."
+                  placeholder="Search PCBs by barcode, lot, or engineer..."
                   value={stepDetailSearchQuery}
                   onChange={e => setStepDetailSearchQuery(e.target.value)}
                   style={{ padding: '8px 12px 8px 34px', fontSize: '0.78rem', background: 'var(--input-bg)', border: '1px solid var(--card-border)', borderRadius: 8, color: 'var(--text-main)' }}
@@ -1122,8 +1122,8 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                           );
                         });
                         return q
-                          ? `Showing ${filtered.length} of ${stepDetailPanels.length} panels`
-                          : `${stepDetailPanels.length} active panels`;
+                          ? `Showing ${filtered.length} of ${stepDetailPanels.length} PCBs`
+                          : `${stepDetailPanels.length} active PCBs`;
                       })()}
                     </span>
                   )}
@@ -1135,11 +1135,11 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
               {stepDetailLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                   <RefreshCw size={24} className="spin" style={{ color: 'var(--color-primary)', marginBottom: 8 }} />
-                  <span style={{ fontSize: '0.75rem' }}>Loading stepwise panels inventory...</span>
+                  <span style={{ fontSize: '0.75rem' }}>Loading stepwise PCB inventory...</span>
                 </div>
               ) : stepDetailPanels.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
-                  No active panels currently in this station.
+                  No active PCBs currently in this station.
                 </div>
               ) : (() => {
                 const q = stepDetailSearchQuery.toLowerCase().trim();
@@ -1155,7 +1155,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                 if (filtered.length === 0) {
                   return (
                     <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                      No panels match your search criteria.
+                      No PCBs match your search criteria.
                     </div>
                   );
                 }
@@ -1177,7 +1177,7 @@ const WorkflowsPage = ({ barcodeSearch, setBarcodeSearch, showToast }) => {
                             <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid var(--card-border)', paddingBottom: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span>📦 Lot {lotNo} ({sample.batch_no} • {sample.pixel_pitch})</span>
                               <span style={{ fontSize: '0.62rem', background: 'var(--card-bg)', padding: '1px 6px', borderRadius: 4, color: 'var(--text-muted)' }}>
-                                {panels.length} panels
+                                {panels.length} PCBs
                               </span>
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

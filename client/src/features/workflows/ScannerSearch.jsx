@@ -54,7 +54,7 @@ const ScannerSearch = ({
                 }}
                 style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '0.75rem', fontWeight: 700 }}
               >
-                Register Panel Now
+                Register PCB Now
               </button>
             )}
           </div>
@@ -75,12 +75,12 @@ const ScannerSearch = ({
         </div>
       </div>
 
-      {/* Assign Panel form (if active) */}
+      {/* Assign PCB form (if active) */}
       {showAssignForm && (
         <div className="glass-panel" style={{ padding: 16, borderColor: 'var(--color-primary)', background: 'rgba(255, 212, 0, 0.02)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', margin: 0 }}>
-              🆕 Register & Assign Panel
+              🆕 Register & Assign PCB
             </h3>
             <button 
               type="button" 
@@ -143,7 +143,7 @@ const ScannerSearch = ({
         </div>
       )}
 
-      {/* Searched Panel Details & Repair Action Input */}
+      {/* Searched PCB Details & Repair Action Input */}
       {searchedPanel && (
         <div className="glass-panel" style={{ padding: 16, borderColor: 'var(--color-primary)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -188,7 +188,7 @@ const ScannerSearch = ({
               </div>
             </div>
           ) : (
-            /* Action Form for operator/engineer to progress the panel */
+            /* Action Form for operator/engineer to progress the PCB */
             <form onSubmit={handleRepairAction} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label>Step Action Result</label>
@@ -221,7 +221,7 @@ const ScannerSearch = ({
           {searchedPanel.activities && searchedPanel.activities.length > 0 && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 12, marginTop: 14 }}>
               <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>
-                Panel Step-wise History logs
+                PCB Step-wise History logs
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 150, overflowY: 'auto' }}>
                 {searchedPanel.activities.map((act, idx) => (

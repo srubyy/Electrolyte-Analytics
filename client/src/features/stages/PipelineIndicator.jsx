@@ -58,9 +58,9 @@ const PipelineIndicator = ({
                   transition: 'all 0.2s',
                   fontWeight: 700
                 }}
-                title="View Panels details at this step"
+                title="View PCBs details at this step"
               >
-                🔍 Panels
+                🔍 PCBs
               </span>
             </div>
             <div style={{ fontSize: '0.72rem', fontWeight: isActive ? 800 : 500, color: isActive ? '#fff' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
