@@ -170,7 +170,7 @@ const DashboardPage = ({ setView, selectedLotNo, showToast }) => {
               <TrendingUp size={16} />
               Step-wise Pending PCBs
             </h3>
-            <div className="pipeline-list" style={{ flex: 1, overflowY: 'auto', maxHeight: '420px', paddingRight: 4 }}>
+            <div className="pipeline-list" style={{ flex: 1, paddingRight: 4 }}>
               {dashboardData?.pipeline.map((step) => (
                 <div 
                   key={step.step_no} 
