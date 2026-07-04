@@ -6,7 +6,7 @@ import StationChecklist from '../../features/workflows/StationChecklist';
 import PresetRemarksSelect from '../../features/workflows/PresetRemarksSelect';
 import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineIndicator';
 
-const WorkflowsPage = ({ selectedLotNo, showToast }) => {
+const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
   const { user, apiFetch } = useAuth();
 
   // Data states from parent or loaded locally
@@ -283,7 +283,20 @@ const WorkflowsPage = ({ selectedLotNo, showToast }) => {
           <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>Active Lot:</label>
           <select
             value={productionLotId}
-            onChange={e => { setProductionLotId(e.target.value); fetchLotProductionStats(e.target.value); setStepInputs({}); }}
+            onChange={e => {
+              const newId = e.target.value;
+              setProductionLotId(newId);
+              fetchLotProductionStats(newId);
+              setStepInputs({});
+              if (onChangeLot) {
+                if (newId) {
+                  const lot = stockData.find(l => l.id === parseInt(newId));
+                  onChangeLot(lot ? String(lot.lot_no) : '');
+                } else {
+                  onChangeLot('');
+                }
+              }
+            }}
             style={{ width: 'auto', minWidth: 200, padding: '6px 12px', background: 'var(--input-bg)', color: 'var(--text-main)', borderRadius: 8, border: '1px solid var(--card-border)', cursor: 'pointer' }}
           >
             <option value="">-- Select Active Lot --</option>

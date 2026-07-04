@@ -176,6 +176,7 @@ function App() {
         {view === 'repair' && (
           <WorkflowsPage 
             selectedLotNo={globalLotNo}
+            onChangeLot={setGlobalLotNo}
             showToast={showToast} 
           />
         )}
