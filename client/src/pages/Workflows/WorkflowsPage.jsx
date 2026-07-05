@@ -825,8 +825,8 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                   filteredPendingLogs.map(log => {
                     const dataEntries = Object.entries(log.step_data);
                     const isTLPending = log.approval_status === 'Pending Team Lead';
-                    const isTLRole = ['Team Lead', 'Manager', 'Superadmin'].includes(user.role);
-                    const isMgrRole = ['Manager', 'Superadmin'].includes(user.role);
+                    const isTLRole = user.role === 'Team Lead';
+                    const isMgrRole = user.role === 'Manager';
                     const isManagerPending = log.approval_status === 'Pending Manager';
 
                     return (

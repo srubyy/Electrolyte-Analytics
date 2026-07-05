@@ -31,7 +31,7 @@ const ApprovalsQueueItem = ({ log, user, onTLApprove, onManagerApprove, onReject
           </button>
         )}
 
-        {['Superadmin', 'Manager'].includes(user?.role) && log.approval_status === 'Pending Manager' && (
+        {user?.role === 'Manager' && log.approval_status === 'Pending Manager' && (
           <button 
             onClick={() => onManagerApprove(log.id)}
             className="btn"
@@ -42,7 +42,7 @@ const ApprovalsQueueItem = ({ log, user, onTLApprove, onManagerApprove, onReject
         )}
 
         {((user?.role === 'Team Lead' && log.approval_status === 'Pending Team Lead') ||
-          (['Superadmin', 'Manager'].includes(user?.role) && log.approval_status === 'Pending Manager')) && (
+          (user?.role === 'Manager' && log.approval_status === 'Pending Manager')) && (
           <button 
             onClick={() => onReject(log.id)}
             className="btn btn-secondary"

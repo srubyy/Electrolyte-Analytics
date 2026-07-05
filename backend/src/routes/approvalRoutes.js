@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/approvals', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), getApprovals);
 router.post('/approvals/tl-approve', authenticateJWT, authorize(['Team Lead']), tlApprove);
-router.post('/approvals/manager-approve', authenticateJWT, authorize(['Manager', 'Superadmin']), managerApprove);
-router.post('/approvals/reject', authenticateJWT, authorize(['Team Lead', 'Manager', 'Superadmin']), rejectLog);
+router.post('/approvals/manager-approve', authenticateJWT, authorize(['Manager']), managerApprove);
+router.post('/approvals/reject', authenticateJWT, authorize(['Team Lead', 'Manager']), rejectLog);
 
 export default router;
