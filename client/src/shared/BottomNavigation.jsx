@@ -34,15 +34,7 @@ const BottomNavigation = ({ view, setView }) => {
         Repair
       </button>
       
-      {user.role !== 'Employee' && (
-        <button 
-          onClick={() => setView('approvals')} 
-          className={`nav-item ${view === 'approvals' ? 'active' : ''}`}
-        >
-          <ShieldCheck />
-          Clearance
-        </button>
-      )}
+
 
       <button 
         onClick={() => setView('leaderboard')} 

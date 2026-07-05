@@ -11,7 +11,6 @@ import AuthPage from './pages/Auth/AuthPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import LotsPage from './pages/Lots/LotsPage';
 import WorkflowsPage from './pages/Workflows/WorkflowsPage';
-import ReportsPage from './pages/Reports/ReportsPage';
 import EngineersPage from './pages/Engineers/EngineersPage';
 import SettingsPage from './pages/Settings/SettingsPage';
 
@@ -180,12 +179,7 @@ function App() {
             showToast={showToast} 
           />
         )}
-        {view === 'approvals' && user.role !== 'Employee' && (
-          <ReportsPage 
-            selectedLotNo={globalLotNo}
-            showToast={showToast} 
-          />
-        )}
+
         {view === 'leaderboard' && (
           <EngineersPage showToast={showToast} />
         )}

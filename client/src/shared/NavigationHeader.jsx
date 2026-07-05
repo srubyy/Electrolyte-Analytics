@@ -37,14 +37,7 @@ const NavigationHeader = ({ view, setView, showToast }) => {
         >
           <Wrench size={18} /> Repair Terminal
         </button>
-        {user.role !== 'Employee' && (
-          <button 
-            onClick={() => setView('approvals')} 
-            className={`app-nav-tab ${view === 'approvals' ? 'active' : ''}`}
-          >
-            <ShieldCheck size={18} /> Quality Clearance
-          </button>
-        )}
+
         <button 
           onClick={() => setView('leaderboard')} 
           className={`app-nav-tab ${view === 'leaderboard' ? 'active' : ''}`}
