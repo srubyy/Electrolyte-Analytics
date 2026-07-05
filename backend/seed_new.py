@@ -11,7 +11,8 @@ BCRYPT_PASSWORD_HASH = "$2b$10$lMGisEmMq5w8.GUVjc.gzO.e1JbAG97vn8a/paPQYyMyaCi5s
 
 clients = [
     {"name": "Xtreme Media Pvt. Ltd.", "contact": "John Doe", "email": "contact@xtrememedia.co"},
-    {"name": "Atomberg", "contact": "Jane Smith", "email": "info@atomberg.com"}
+    {"name": "Atomberg", "contact": "Jane Smith", "email": "info@atomberg.com"},
+    {"name": "Bajaj", "contact": "Bajaj Spares Manager", "email": "spares@bajaj.com"}
 ]
 
 users = [
@@ -31,10 +32,10 @@ users = [
 ]
 
 lots = [
-    {"lot_no": 17, "batch_no": "DX128", "pixel_pitch": "P5.9", "client_name": "Xtreme Media Pvt. Ltd.", "qty_sent": 260, "received_qty": 260, "status": "Complete", "remarks": "Successfully completed all refurbishment steps and dispatched."},
-    {"lot_no": 18, "batch_no": "DX128", "pixel_pitch": "P5.9", "client_name": "Xtreme Media Pvt. Ltd.", "qty_sent": 200, "received_qty": 200, "status": "In Process", "remarks": "139 dispatched. 61 pending in various steps. 48 panels pending dispatch."},
-    {"lot_no": 19, "batch_no": "DX128", "pixel_pitch": "P5.9", "client_name": "Xtreme Media Pvt. Ltd.", "qty_sent": 500, "received_qty": 500, "status": "In Process", "remarks": "Large batch, currently in early triage and panel assignment stages."},
-    {"lot_no": 20, "batch_no": "DX109", "pixel_pitch": "P5.9", "client_name": "Xtreme Media Pvt. Ltd.", "qty_sent": 50, "received_qty": 50, "status": "In Process", "remarks": "Received recently, initial panel assign in progress."}
+    {"lot_no": 17, "batch_no": "DX128", "pixel_pitch": "P5.9", "client_name": "Atomberg", "qty_sent": 260, "received_qty": 260, "status": "Complete", "remarks": "Successfully completed all refurbishment steps and dispatched."},
+    {"lot_no": 18, "batch_no": "DX128", "pixel_pitch": "P5.9", "client_name": "Bajaj", "qty_sent": 200, "received_qty": 200, "status": "In Process", "remarks": "139 dispatched. 61 pending in various steps. 48 panels pending dispatch."},
+    {"lot_no": 19, "batch_no": "DX128", "pixel_pitch": "P5.9", "client_name": "Atomberg", "qty_sent": 500, "received_qty": 500, "status": "In Process", "remarks": "Large batch, currently in early triage and panel assignment stages."},
+    {"lot_no": 20, "batch_no": "DX109", "pixel_pitch": "P5.9", "client_name": "Bajaj", "qty_sent": 50, "received_qty": 50, "status": "In Process", "remarks": "Received recently, initial panel assign in progress."}
 ]
 
 lot_18_panels = []

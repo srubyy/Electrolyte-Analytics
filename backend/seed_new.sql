@@ -3,6 +3,7 @@
 -- Seed Clients
 INSERT INTO clients (name, contact, email) VALUES ('Xtreme Media Pvt. Ltd.', 'John Doe', 'contact@xtrememedia.co') ON CONFLICT (name) DO NOTHING;
 INSERT INTO clients (name, contact, email) VALUES ('Atomberg', 'Jane Smith', 'info@atomberg.com') ON CONFLICT (name) DO NOTHING;
+INSERT INTO clients (name, contact, email) VALUES ('Bajaj', 'Bajaj Spares Manager', 'spares@bajaj.com') ON CONFLICT (name) DO NOTHING;
 
 -- Seed Users (with hashed passwords)
 INSERT INTO users (name, email, password_hash, role, attendance_rate, avatar) VALUES ('Super Admin', 'superadmin@electrolytesoln.com', '$2b$10$lMGisEmMq5w8.GUVjc.gzO.e1JbAG97vn8a/paPQYyMyaCi5ssHs2', 'Superadmin', 100.0, 'https://api.dicebear.com/7.x/adventurer/svg?seed=SuperAdmin') ON CONFLICT (name) DO NOTHING;
@@ -20,10 +21,10 @@ INSERT INTO users (name, email, password_hash, role, attendance_rate, avatar) VA
 INSERT INTO users (name, email, password_hash, role, attendance_rate, avatar) VALUES ('Vijay Kumar', 'vijay.kumar@electrolytesoln.com', '$2b$10$lMGisEmMq5w8.GUVjc.gzO.e1JbAG97vn8a/paPQYyMyaCi5ssHs2', 'Employee', 94.8, 'https://api.dicebear.com/7.x/adventurer/svg?seed=VijayKumar') ON CONFLICT (name) DO NOTHING;
 
 -- Seed Lots
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (17, 'DX128', 'P5.9', (SELECT id FROM clients WHERE name = 'Xtreme Media Pvt. Ltd.'), 260, 260, 'Complete', 'Successfully completed all refurbishment steps and dispatched.') ON CONFLICT (lot_no) DO NOTHING;
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (18, 'DX128', 'P5.9', (SELECT id FROM clients WHERE name = 'Xtreme Media Pvt. Ltd.'), 200, 200, 'In Process', '139 dispatched. 61 pending in various steps. 48 panels pending dispatch.') ON CONFLICT (lot_no) DO NOTHING;
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (19, 'DX128', 'P5.9', (SELECT id FROM clients WHERE name = 'Xtreme Media Pvt. Ltd.'), 500, 500, 'In Process', 'Large batch, currently in early triage and panel assignment stages.') ON CONFLICT (lot_no) DO NOTHING;
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (20, 'DX109', 'P5.9', (SELECT id FROM clients WHERE name = 'Xtreme Media Pvt. Ltd.'), 50, 50, 'In Process', 'Received recently, initial panel assign in progress.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (17, 'DX128', 'P5.9', (SELECT id FROM clients WHERE name = 'Atomberg'), 260, 260, 'Complete', 'Successfully completed all refurbishment steps and dispatched.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (18, 'DX128', 'P5.9', (SELECT id FROM clients WHERE name = 'Bajaj'), 200, 200, 'In Process', '139 dispatched. 61 pending in various steps. 48 panels pending dispatch.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (19, 'DX128', 'P5.9', (SELECT id FROM clients WHERE name = 'Atomberg'), 500, 500, 'In Process', 'Large batch, currently in early triage and panel assignment stages.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_id, qty_sent, received_qty, status, remarks) VALUES (20, 'DX109', 'P5.9', (SELECT id FROM clients WHERE name = 'Bajaj'), 50, 50, 'In Process', 'Received recently, initial panel assign in progress.') ON CONFLICT (lot_no) DO NOTHING;
 
 -- Seed Defect Codes
 INSERT INTO defect_codes (code, description, category) VALUES ('IC-FAIL', 'Failed driver IC test (needs replacement)', 'IC Defect') ON CONFLICT (code) DO NOTHING;
