@@ -96,7 +96,7 @@ export const getPendingProductionLogs = async (req, res) => {
 
   if (isFallback()) {
     let logs = memoryDb.tables.pending_production_logs
-      .filter(pl => ['Pending Team Lead', 'Pending Manager'].includes(pl.approval_status))
+      .filter(pl => pl.approval_status === 'Pending Team Lead')
       .map(pl => {
         const lot = memoryDb.tables.lots.find(l => l.id === pl.lot_id);
         const user = memoryDb.tables.users.find(u => u.id === pl.operator_id);
@@ -129,7 +129,7 @@ export const getPendingProductionLogs = async (req, res) => {
   `;
   const params = [];
 
-  q += ` AND pl.approval_status IN ('Pending Team Lead', 'Pending Manager')`;
+  q += ` AND pl.approval_status = 'Pending Team Lead'`;
 
   if (step_no) {
     params.push(parseInt(step_no));

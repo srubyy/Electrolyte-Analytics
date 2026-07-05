@@ -63,10 +63,7 @@ export const PendingLog = {
     let sql = 'UPDATE pending_logs SET approval_status = $1';
     const params = [status];
     
-    if (status === 'Approved' && approverType === 'manager') {
-      params.push(approverId);
-      sql += `, manager_id = $${params.length}, manager_approved_at = CURRENT_TIMESTAMP`;
-    } else if (status === 'Pending Manager') {
+    if (status === 'Approved' && approverType === 'teamlead') {
       params.push(approverId);
       sql += `, team_lead_id = $${params.length}, team_lead_approved_at = CURRENT_TIMESTAMP`;
     } else if (status === 'Rejected') {

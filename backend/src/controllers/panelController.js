@@ -121,7 +121,7 @@ export const searchPanel = async (req, res) => {
 
     if (isFallback()) {
       const pLog = memoryDb.tables.pending_logs
-        .filter(pl => pl.panel_id === panel.id && ['Pending Team Lead', 'Pending Manager', 'Rejected'].includes(pl.approval_status))
+        .filter(pl => pl.panel_id === panel.id && ['Pending Team Lead', 'Rejected'].includes(pl.approval_status))
         .sort((a, b) => b.id - a.id)[0];
         
       if (pLog) {
@@ -148,7 +148,7 @@ export const searchPanel = async (req, res) => {
         SELECT pl.*, u.name as engineer_name 
         FROM pending_logs pl
         JOIN users u ON pl.engineer_id = u.id
-        WHERE pl.panel_id = $1 AND pl.approval_status IN ('Pending Team Lead', 'Pending Manager', 'Rejected')
+        WHERE pl.panel_id = $1 AND pl.approval_status IN ('Pending Team Lead', 'Rejected')
         ORDER BY pl.id DESC LIMIT 1
       `, [panel.id], req.user);
 

@@ -23,7 +23,7 @@ export const getApprovals = async (req, res) => {
     let approvals = [];
     if (isFallback()) {
       approvals = memoryDb.getAllPendingLogs()
-        .filter(row => ['Pending Team Lead', 'Pending Manager'].includes(row.approval_status))
+        .filter(row => row.approval_status === 'Pending Team Lead')
         .sort((a, b) => a.id - b.id);
     } else {
       const approvalsRes = await query(`
@@ -33,7 +33,7 @@ export const getApprovals = async (req, res) => {
         JOIN lots l ON p.lot_id = l.id
         JOIN users u ON pl.engineer_id = u.id
         LEFT JOIN users tl ON pl.team_lead_id = tl.id
-        WHERE pl.approval_status IN ('Pending Team Lead', 'Pending Manager')
+        WHERE pl.approval_status = 'Pending Team Lead'
         ORDER BY pl.id ASC
       `, [], req.user);
       approvals = approvalsRes.rows;

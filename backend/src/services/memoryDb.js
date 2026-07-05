@@ -572,10 +572,7 @@ export const updatePendingLogStatus = (id, status, approverId, approverType, rej
   const log = tables.pending_logs.find(r => r.id === id);
   if (log) {
     log.approval_status = status;
-    if (status === 'Approved' && approverType === 'manager') {
-      log.manager_id = approverId;
-      log.manager_approved_at = new Date().toISOString();
-    } else if (status === 'Pending Manager') {
+    if (status === 'Approved' && approverType === 'teamlead') {
       log.team_lead_id = approverId;
       log.team_lead_approved_at = new Date().toISOString();
     } else if (status === 'Rejected') {
