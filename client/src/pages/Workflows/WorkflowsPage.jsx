@@ -279,7 +279,7 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
           >
             <option value="">-- Select Active Lot --</option>
             {Array.isArray(stockData) && stockData.map(l => (
-              <option key={l.id} value={l.id}>Lot {l.lot_no} ({l.batch_no} • {l.pixel_pitch})</option>
+              <option key={l.id} value={l.id}>Lot {l.lot_no}</option>
             ))}
           </select>
         </div>

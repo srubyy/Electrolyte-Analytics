@@ -26,7 +26,7 @@ const RedispatchModal = ({ isOpen, onClose, onSubmit, stockData, user, form, set
             >
               <option value="">-- Choose Lot --</option>
               {stockData.filter(l => l.status !== 'Complete' || user?.role === 'Superadmin').map(l => (
-                <option key={l.id} value={l.id}>Lot {l.lot_no} (Avail: {l.available} • Client: {l.client_name})</option>
+                <option key={l.id} value={l.id}>Lot {l.lot_no} (Avail: {l.available})</option>
               ))}
             </select>
           </div>

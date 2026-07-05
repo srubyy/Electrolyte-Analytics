@@ -150,7 +150,7 @@ function App() {
               >
                 <option value="">All Lots (Global View)</option>
                 {Array.isArray(lots) && lots.map(l => (
-                  <option key={l.id} value={l.lot_no}>Lot {l.lot_no} ({l.client_name || l.client_id})</option>
+                  <option key={l.id} value={l.lot_no}>Lot {l.lot_no}</option>
                 ))}
               </select>
             </div>
