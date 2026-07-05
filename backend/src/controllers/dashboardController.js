@@ -17,7 +17,7 @@ const STEP_NAMES = [
 ];
 
 export const getDashboard = async (req, res) => {
-  const { lot_no } = req.query;
+  const { lot_no, client_name } = req.query;
 
   try {
     // 1. Fetch lots
@@ -33,6 +33,10 @@ export const getDashboard = async (req, res) => {
       lotsList = singleLot ? [singleLot] : [];
     } else {
       lotsList = await Lot.getAll();
+    }
+
+    if (client_name) {
+      lotsList = lotsList.filter(l => l.client_name && l.client_name.toLowerCase().includes(client_name.toLowerCase()));
     }
 
     let totalLots = lotsList.length;
@@ -64,7 +68,16 @@ export const getDashboard = async (req, res) => {
     // 3. Pipeline step breakdown
     const stepBreakdown = [];
     for (let i = 1; i <= 12; i++) {
-      const countVal = await Panel.countAtStep(i, lot_no || null);
+      let countVal = 0;
+      if (lot_no) {
+        countVal = await Panel.countAtStep(i, lot_no);
+      } else if (client_name) {
+        for (const lot of lotsList) {
+          countVal += await Panel.countAtStep(i, lot.lot_no);
+        }
+      } else {
+        countVal = await Panel.countAtStep(i, null);
+      }
 
       stepBreakdown.push({
         step_no: i,

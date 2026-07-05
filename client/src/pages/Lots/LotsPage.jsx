@@ -10,7 +10,7 @@ import RedispatchModal from '../../features/lots/RedispatchModal';
 import TransactionHistoryModal from '../../features/lots/TransactionHistoryModal';
 import EmailModal from '../../features/lots/EmailModal';
 
-const LotsPage = ({ selectedLotNo, showToast }) => {
+const LotsPage = ({ selectedLotNo, selectedCompany, showToast }) => {
   const { user, apiFetch } = useAuth();
   
   // Data states
@@ -371,7 +371,11 @@ const LotsPage = ({ selectedLotNo, showToast }) => {
   };
 
   const filteredStock = Array.isArray(stockData)
-    ? (selectedLotNo ? stockData.filter(l => l.lot_no === parseInt(selectedLotNo)) : stockData)
+    ? stockData.filter(l => {
+        const matchesLot = selectedLotNo ? l.lot_no === parseInt(selectedLotNo) : true;
+        const matchesCompany = selectedCompany ? l.client_name && l.client_name.toLowerCase().includes(selectedCompany.toLowerCase()) : true;
+        return matchesLot && matchesCompany;
+      })
     : [];
 
   const exportAllLots = () => {

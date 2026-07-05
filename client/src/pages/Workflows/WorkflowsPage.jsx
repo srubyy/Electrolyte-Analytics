@@ -4,7 +4,7 @@ import { Cpu, Wrench, ArrowRight, Check, CheckCheck, X, ShieldAlert, CheckCircle
 import StationChecklist from '../../features/workflows/StationChecklist';import PresetRemarksSelect from '../../features/workflows/PresetRemarksSelect';
 import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineIndicator';
 
-const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
+const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast }) => {
   const { user, apiFetch } = useAuth();
 
   // Data states from parent or loaded locally
@@ -277,10 +277,13 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
             }}
             style={{ width: 'auto', minWidth: 200, padding: '6px 12px', background: 'var(--input-bg)', color: 'var(--text-main)', borderRadius: 8, border: '1px solid var(--card-border)', cursor: 'pointer' }}
           >
-            <option value="">-- Select Active Lot --</option>
-            {Array.isArray(stockData) && stockData.map(l => (
-              <option key={l.id} value={l.id}>Lot {l.lot_no}</option>
-            ))}
+             <option value="">-- Select Active Lot --</option>
+             {Array.isArray(stockData) && stockData
+               .filter(l => selectedCompany ? l.client_name && l.client_name.toLowerCase().includes(selectedCompany.toLowerCase()) : true)
+               .map(l => (
+                 <option key={l.id} value={l.id}>Lot {l.lot_no}</option>
+               ))
+             }
           </select>
         </div>
       </div>

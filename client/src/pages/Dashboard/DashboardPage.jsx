@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, RefreshCw, AlertTriangle, TrendingUp, History } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const DashboardPage = ({ setView, selectedLotNo, showToast }) => {
+const DashboardPage = ({ setView, selectedLotNo, selectedCompany, showToast }) => {
   const { user, apiFetch } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [engineers, setEngineers] = useState([]);
 
   const fetchDashboard = async () => {
     try {
-      const url = selectedLotNo ? `/api/dashboard?lot_no=${selectedLotNo}` : '/api/dashboard';
+      let url = selectedLotNo ? `/api/dashboard?lot_no=${selectedLotNo}` : '/api/dashboard';
+      if (!selectedLotNo && selectedCompany) {
+        url = `/api/dashboard?client_name=${selectedCompany}`;
+      }
       const res = await apiFetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -35,7 +38,7 @@ const DashboardPage = ({ setView, selectedLotNo, showToast }) => {
   useEffect(() => {
     fetchDashboard();
     fetchEngineers();
-  }, [selectedLotNo]);
+  }, [selectedLotNo, selectedCompany]);
 
   // Auto-refresh stats every 15s
   useEffect(() => {
@@ -43,7 +46,7 @@ const DashboardPage = ({ setView, selectedLotNo, showToast }) => {
       fetchDashboard();
     }, 15000);
     return () => clearInterval(timer);
-  }, [selectedLotNo]);
+  }, [selectedLotNo, selectedCompany]);
 
   return (
     <div>

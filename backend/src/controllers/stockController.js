@@ -52,7 +52,12 @@ export const getStock = async (req, res) => {
       });
     }
 
-    res.json(result);
+    let filteredResult = result;
+    if (req.query.client_name) {
+      filteredResult = result.filter(r => r.client_name && r.client_name.toLowerCase().includes(req.query.client_name.toLowerCase()));
+    }
+
+    res.json(filteredResult);
   } catch (err) {
     console.error('Stock summary error:', err);
     res.status(500).json({ error: "Failed to load stock data." });

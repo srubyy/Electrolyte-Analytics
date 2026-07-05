@@ -21,6 +21,7 @@ function App() {
   const [searchSrNo, setSearchSrNo] = useState('');
   const [lots, setLots] = useState([]);
   const [globalLotNo, setGlobalLotNo] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
   const [notification, setNotification] = useState(null);
 
   const fetchLotsList = async () => {
@@ -125,34 +126,68 @@ function App() {
                 Active Factory Scope:
               </span>
               <strong style={{ fontSize: '0.82rem', color: '#fff' }}>
-                {globalLotNo ? `Lot ${globalLotNo}` : 'All Lots (Global Factory View)'}
+                {globalLotNo ? `Lot ${globalLotNo}` : (selectedCompany ? `All ${selectedCompany} Lots` : 'All Lots (Global Factory View)')}
               </strong>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <label htmlFor="global-lot-select" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, fontWeight: 600 }}>Filter by Lot:</label>
-              <select
-                id="global-lot-select"
-                value={globalLotNo}
-                onChange={(e) => setGlobalLotNo(e.target.value)}
-                style={{
-                  padding: '8px 16px',
-                  background: 'var(--input-bg)',
-                  border: '1px solid var(--card-border)',
-                  color: 'var(--text-main)',
-                  borderRadius: 8,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  minWidth: '180px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
-                }}
-              >
-                <option value="">All Lots (Global View)</option>
-                {Array.isArray(lots) && lots.map(l => (
-                  <option key={l.id} value={l.lot_no}>Lot {l.lot_no}</option>
-                ))}
-              </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label htmlFor="global-company-select" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, fontWeight: 600 }}>Company:</label>
+                <select
+                  id="global-company-select"
+                  value={selectedCompany}
+                  onChange={(e) => {
+                    setSelectedCompany(e.target.value);
+                    setGlobalLotNo('');
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--input-bg)',
+                    border: '1px solid var(--card-border)',
+                    color: 'var(--text-main)',
+                    borderRadius: 8,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    minWidth: '150px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                >
+                  <option value="">-- Select Company --</option>
+                  <option value="Atomberg">Atomberg</option>
+                  <option value="Bajaj">Bajaj</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <label htmlFor="global-lot-select" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, fontWeight: 600 }}>Filter by Lot:</label>
+                <select
+                  id="global-lot-select"
+                  value={globalLotNo}
+                  disabled={!selectedCompany}
+                  onChange={(e) => setGlobalLotNo(e.target.value)}
+                  style={{
+                    padding: '8px 16px',
+                    background: !selectedCompany ? 'rgba(255,255,255,0.02)' : 'var(--input-bg)',
+                    border: '1px solid var(--card-border)',
+                    color: !selectedCompany ? 'var(--text-muted)' : 'var(--text-main)',
+                    borderRadius: 8,
+                    fontSize: '0.8rem',
+                    cursor: !selectedCompany ? 'not-allowed' : 'pointer',
+                    minWidth: '180px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                >
+                  <option value="">All Lots (Global View)</option>
+                  {Array.isArray(lots) && lots
+                    .filter(l => selectedCompany ? l.client_name && l.client_name.toLowerCase().includes(selectedCompany.toLowerCase()) : false)
+                    .map(l => (
+                      <option key={l.id} value={l.lot_no}>Lot {l.lot_no}</option>
+                    ))
+                  }
+                </select>
+              </div>
             </div>
           </div>
         )}
@@ -161,6 +196,7 @@ function App() {
           <DashboardPage 
             setView={setView} 
             selectedLotNo={globalLotNo}
+            selectedCompany={selectedCompany}
             setSearchLotNo={setSearchLotNo}
             setSearchSrNo={setSearchSrNo}
             showToast={showToast} 
@@ -169,12 +205,14 @@ function App() {
         {view === 'stock' && (
           <LotsPage 
             selectedLotNo={globalLotNo}
+            selectedCompany={selectedCompany}
             showToast={showToast} 
           />
         )}
         {view === 'repair' && (
           <WorkflowsPage 
             selectedLotNo={globalLotNo}
+            selectedCompany={selectedCompany}
             onChangeLot={setGlobalLotNo}
             showToast={showToast} 
           />
