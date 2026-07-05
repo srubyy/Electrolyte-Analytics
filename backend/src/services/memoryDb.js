@@ -17,8 +17,8 @@ export const tables = {
     { id: 8, step_no: 8, name: 'QC After Cleaning' },
     { id: 9, step_no: 9, name: 'Marking & Coating' },
     { id: 10, step_no: 10, name: 'Final Testing' },
-    { id: 11, step_no: 11, name: 'Packing' },
-    { id: 12, step_no: 12, name: 'Final Entry' }
+    { id: 11, step_no: 11, name: 'Final Entry' },
+    { id: 12, step_no: 12, name: 'Packing' }
   ],
   panels: [],
   panel_logs: [],

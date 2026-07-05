@@ -363,7 +363,7 @@ const LotsPage = ({ selectedLotNo, showToast }) => {
     const headers = ["Serial Number", "PCB Record ID", "Side", "Status", "Current Step", "Assigned Operator"];
     const STEP_NAMES = [
       "Inward", "Segregation", "Programming", "1st Testing", "Debug", "Entry",
-      "Cleaning", "QC After Cleaning", "Marking & Coating", "Final Testing", "Packing", "Final Entry"
+      "Cleaning", "QC After Cleaning", "Marking & Coating", "Final Testing", "Final Entry", "Packing"
     ];
     const rows = panels.map(p => [p.sr_no, p.id, p.side, p.status, STEP_NAMES[p.current_step - 1], p.engineer_name || 'Unassigned']);
     downloadCSV(`ES_Lot_${lotNo}_Report.csv`, headers, rows);

@@ -363,8 +363,8 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                        <span>Step 12: Final Entry (Dispatch)</span>
-                        <span style={{ color: '#10b981', fontWeight: 700 }}>{parseInt(lotProductionStats.steps[12]?.entry_count || 0)} Dispatched</span>
+                        <span>Step 11: Final Entry (Dispatch)</span>
+                        <span style={{ color: '#10b981', fontWeight: 700 }}>{parseInt(lotProductionStats.steps[11]?.entry_count || 0)} Dispatched</span>
                       </div>
                     </div>
                   </div>
@@ -713,7 +713,7 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                   </div>
                 )}
 
-                {selectedProductionStep === 11 && (
+                {selectedProductionStep === 12 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Bubble Packed</label>
@@ -742,11 +742,11 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                         onChange={e => setStepInputs({ ...stepInputs, out_lot: e.target.value })}
                       />
                     </div>
-                    <PresetRemarksSelect stepNo={11} stepInputs={stepInputs} setStepInputs={setStepInputs} />
+                    <PresetRemarksSelect stepNo={12} stepInputs={stepInputs} setStepInputs={setStepInputs} />
                   </div>
                 )}
 
-                {selectedProductionStep === 12 && (
+                {selectedProductionStep === 11 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Entry Count</label>

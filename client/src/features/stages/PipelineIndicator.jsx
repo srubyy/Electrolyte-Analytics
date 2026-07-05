@@ -11,8 +11,8 @@ const STEP_NAMES = [
   "QC After Cleaning",
   "Marking & Coating",
   "Final Testing",
-  "Packing",
-  "Final Entry"
+  "Final Entry",
+  "Packing"
 ];
 
 const PipelineIndicator = ({ 

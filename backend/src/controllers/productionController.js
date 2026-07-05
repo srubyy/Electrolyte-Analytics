@@ -367,8 +367,8 @@ export const tlApproveLog = async (req, res) => {
       }
     }
 
-    // Adjust lot stats if Step 12 (Final Entry) is committed
-    if (pLog.step_no === 12) {
+    // Adjust lot stats if Step 11 (Final Entry) is committed
+    if (pLog.step_no === 11) {
       const finalCount = parseInt(pLog.step_data.entry_count || 0);
       
       if (isFallback()) {
