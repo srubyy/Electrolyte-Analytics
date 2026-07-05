@@ -187,32 +187,12 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
       });
       const data = await res.json();
       if (res.ok) {
-        showToast('Team Lead clearance verified. Advanced to Manager clearance stage.');
-        fetchPendingProductionLogs(selectedProductionStep);
-        fetchLotProductionStats(productionLotId);
-      } else {
-        showToast(data.error || 'Failed to approve log.', 'danger');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Error connecting to API.', 'danger');
-    }
-  };
-
-  const managerApproveProductionLog = async (pendingLogId) => {
-    try {
-      const res = await apiFetch('/api/production/manager-approve', {
-        method: 'POST',
-        body: JSON.stringify({ pending_log_id: pendingLogId })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast('Manager clearance approved. Log committed to production database!');
+        showToast('Team Lead clearance approved. Log committed to production database!');
         fetchPendingProductionLogs(selectedProductionStep);
         fetchProductionLogs(productionLotId, selectedProductionStep);
         fetchLotProductionStats(productionLotId);
       } else {
-        showToast(data.error || 'Failed to commit log.', 'danger');
+        showToast(data.error || 'Failed to approve log.', 'danger');
       }
     } catch (err) {
       console.error(err);
@@ -826,8 +806,6 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                     const dataEntries = Object.entries(log.step_data);
                     const isTLPending = log.approval_status === 'Pending Team Lead';
                     const isTLRole = user.role === 'Team Lead';
-                    const isMgrRole = user.role === 'Manager';
-                    const isManagerPending = log.approval_status === 'Pending Manager';
 
                     return (
                       <div
@@ -847,7 +825,7 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                               Operator: <strong>{log.operator_name || 'System'}</strong> • Time: {new Date(log.timestamp).toLocaleString()}
                             </div>
                           </div>
-                          <span className={`badge ${isTLPending ? 'badge-warning' : isManagerPending ? 'badge-info' : 'badge-success'}`}>
+                          <span className={`badge ${log.approval_status === 'Pending Team Lead' ? 'badge-warning' : log.approval_status === 'Rejected' ? 'badge-danger' : 'badge-success'}`}>
                             {log.approval_status}
                           </span>
                         </div>
@@ -898,33 +876,22 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                           ) : (
                             <>
                               {isTLPending && isTLRole && (
-                                <button
-                                  onClick={() => tlApproveProductionLog(log.id)}
-                                  className="btn btn-success"
-                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', background: 'var(--color-primary)', color: '#000', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
-                                >
-                                  <Check size={12} /> TL Sign-off
-                                </button>
-                              )}
-
-                              {isManagerPending && isMgrRole && (
-                                <button
-                                  onClick={() => managerApproveProductionLog(log.id)}
-                                  className="btn btn-success"
-                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', background: '#10b981', color: 'var(--text-main)', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
-                                >
-                                  <Check size={12} /> Manager Approve
-                                </button>
-                              )}
-
-                              {((isTLPending && isTLRole) || (isManagerPending && isMgrRole)) && (
-                                <button
-                                  onClick={() => { setRejectionLogInputId(log.id); setRejectionLogText(''); }}
-                                  className="btn btn-danger"
-                                  style={{ width: 'auto', margin: 0, padding: '6px 14px', fontSize: '0.72rem', cursor: 'pointer' }}
-                                >
-                                  <X size={12} /> Reject
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => tlApproveProductionLog(log.id)}
+                                    className="btn btn-success"
+                                    style={{ width: 'auto', margin: 0, padding: '6px 14px', background: 'var(--color-primary)', color: '#000', fontSize: '0.72rem', fontWeight: 800, cursor: 'pointer' }}
+                                  >
+                                    <Check size={12} /> TL Sign-off
+                                  </button>
+                                  <button
+                                    onClick={() => { setRejectionLogInputId(log.id); setRejectionLogText(''); }}
+                                    className="btn btn-danger"
+                                    style={{ width: 'auto', margin: 0, padding: '6px 14px', fontSize: '0.72rem', cursor: 'pointer' }}
+                                  >
+                                    <X size={12} /> Reject
+                                  </button>
+                                </>
                               )}
                             </>
                           )}

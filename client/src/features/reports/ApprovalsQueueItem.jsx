@@ -22,34 +22,22 @@ const ApprovalsQueueItem = ({ log, user, onTLApprove, onManagerApprove, onReject
       {/* Approval Actions */}
       <div style={{ display: 'flex', gap: 8 }}>
         {user?.role === 'Team Lead' && log.approval_status === 'Pending Team Lead' && (
-          <button 
-            onClick={() => onTLApprove(log.id)}
-            className="btn"
-            style={{ flex: 1, padding: 8, margin: 0, fontSize: '0.72rem' }}
-          >
-            TL Vetting OK
-          </button>
-        )}
-
-        {user?.role === 'Manager' && log.approval_status === 'Pending Manager' && (
-          <button 
-            onClick={() => onManagerApprove(log.id)}
-            className="btn"
-            style={{ flex: 1, padding: 8, margin: 0, fontSize: '0.72rem', background: '#38bdf8', color: '#000' }}
-          >
-            Final Commit
-          </button>
-        )}
-
-        {((user?.role === 'Team Lead' && log.approval_status === 'Pending Team Lead') ||
-          (user?.role === 'Manager' && log.approval_status === 'Pending Manager')) && (
-          <button 
-            onClick={() => onReject(log.id)}
-            className="btn btn-secondary"
-            style={{ flex: 0.6, padding: 8, margin: 0, fontSize: '0.72rem', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
-          >
-            Reject
-          </button>
+          <>
+            <button 
+              onClick={() => onTLApprove(log.id)}
+              className="btn"
+              style={{ flex: 1, padding: 8, margin: 0, fontSize: '0.72rem' }}
+            >
+              TL Vetting OK
+            </button>
+            <button 
+              onClick={() => onReject(log.id)}
+              className="btn btn-secondary"
+              style={{ flex: 0.6, padding: 8, margin: 0, fontSize: '0.72rem', borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+            >
+              Reject
+            </button>
+          </>
         )}
       </div>
     </div>

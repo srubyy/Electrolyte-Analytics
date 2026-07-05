@@ -57,24 +57,6 @@ const ReportsPage = ({ selectedLotNo, showToast }) => {
     }
   };
 
-  const handleManagerApprove = async (logId) => {
-    try {
-      const res = await apiFetch('/api/approvals/manager-approve', {
-        method: 'POST',
-        body: JSON.stringify({ pending_log_id: logId })
-      });
-      if (res.ok) {
-        showToast('Final clearance approved. Task committed to committed database!');
-        fetchApprovals();
-      } else {
-        const data = await res.json();
-        showToast(data.error || 'Failed Manager final clearance.', 'danger');
-      }
-    } catch (err) {
-      console.error(err);
-      showToast('Server connection error.', 'danger');
-    }
-  };
 
   const handleRejectSubmit = async (e) => {
     e.preventDefault();
@@ -255,7 +237,6 @@ const ReportsPage = ({ selectedLotNo, showToast }) => {
                   log={log} 
                   user={user} 
                   onTLApprove={handleTLApprove} 
-                  onManagerApprove={handleManagerApprove} 
                   onReject={(id) => {
                     setRejectingLogId(id);
                     setShowRejectModal(true);

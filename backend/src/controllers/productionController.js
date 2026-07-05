@@ -288,7 +288,7 @@ export const logProduction = async (req, res) => {
       success: true,
       pending: true,
       log: logResult,
-      message: "Step production log submitted successfully! Awaiting Team Lead & Manager clearances."
+      message: "Step production log submitted successfully! Awaiting Team Lead clearance."
     });
 
   } catch (err) {
@@ -303,42 +303,6 @@ export const tlApproveLog = async (req, res) => {
     return res.status(400).json({ error: "Missing pending log ID." });
   }
 
-  try {
-    if (isFallback()) {
-      const log = memoryDb.tables.pending_production_logs.find(pl => pl.id === parseInt(pending_log_id) && pl.approval_status === 'Pending Team Lead');
-      if (!log) {
-        return res.status(404).json({ error: "Pending log not found or already verified." });
-      }
-      log.approval_status = 'Pending Manager';
-      log.team_lead_id = req.user.id;
-      log.team_lead_approved_at = new Date().toISOString();
-      return res.json({ success: true, log });
-    }
-
-    const updateRes = await query(`
-      UPDATE pending_production_logs 
-      SET approval_status = 'Pending Manager', team_lead_id = $1, team_lead_approved_at = NOW()
-      WHERE id = $2 AND approval_status = 'Pending Team Lead'
-      RETURNING *
-    `, [req.user.id, pending_log_id]);
-
-    if (updateRes.rowCount === 0) {
-      return res.status(404).json({ error: "Pending log not found or already verified." });
-    }
-
-    res.json({ success: true, log: updateRes.rows[0] });
-  } catch (err) {
-    console.error('TL approve error:', err);
-    res.status(500).json({ error: "Failed to approve log at Team Lead stage." });
-  }
-};
-
-export const managerApproveLog = async (req, res) => {
-  const { pending_log_id } = req.body;
-  if (!pending_log_id) {
-    return res.status(400).json({ error: "Missing pending log ID." });
-  }
-
   const useTx = !isFallback();
   const txClient = useTx ? await pool.connect() : null;
 
@@ -347,9 +311,9 @@ export const managerApproveLog = async (req, res) => {
 
     let pLog = null;
     if (isFallback()) {
-      pLog = memoryDb.tables.pending_production_logs.find(pl => pl.id === parseInt(pending_log_id) && pl.approval_status === 'Pending Manager');
+      pLog = memoryDb.tables.pending_production_logs.find(pl => pl.id === parseInt(pending_log_id) && pl.approval_status === 'Pending Team Lead');
     } else {
-      const logRes = await txClient.query("SELECT * FROM pending_production_logs WHERE id = $1 AND approval_status = 'Pending Manager'", [pending_log_id]);
+      const logRes = await txClient.query("SELECT * FROM pending_production_logs WHERE id = $1 AND approval_status = 'Pending Team Lead'", [pending_log_id]);
       if (logRes.rowCount > 0) pLog = logRes.rows[0];
     }
 
@@ -358,7 +322,7 @@ export const managerApproveLog = async (req, res) => {
         await txClient.query('ROLLBACK');
         txClient.release();
       }
-      return res.status(404).json({ error: "Pending manager clearance not found." });
+      return res.status(404).json({ error: "Pending log not found or already verified." });
     }
 
     // Insert into committed production_logs
@@ -373,8 +337,8 @@ export const managerApproveLog = async (req, res) => {
         timestamp: pLog.timestamp || new Date().toISOString()
       });
       pLog.approval_status = 'Approved';
-      pLog.manager_id = req.user.id;
-      pLog.manager_approved_at = new Date().toISOString();
+      pLog.team_lead_id = req.user.id;
+      pLog.team_lead_approved_at = new Date().toISOString();
     } else {
       await txClient.query(`
         INSERT INTO production_logs (lot_id, step_no, pcb_type, operator_id, step_data, timestamp)
@@ -383,7 +347,7 @@ export const managerApproveLog = async (req, res) => {
 
       await txClient.query(`
         UPDATE pending_production_logs 
-        SET approval_status = 'Approved', manager_id = $1, manager_approved_at = NOW()
+        SET approval_status = 'Approved', team_lead_id = $1, team_lead_approved_at = NOW()
         WHERE id = $2
       `, [req.user.id, pending_log_id]);
     }
@@ -437,8 +401,8 @@ export const managerApproveLog = async (req, res) => {
       await txClient.query('ROLLBACK');
       txClient.release();
     }
-    console.error('Manager approve error:', err);
-    res.status(500).json({ error: "Failed to commit approved production log." });
+    console.error('TL approve error:', err);
+    res.status(500).json({ error: "Failed to finalize quality clearance transaction." });
   }
 };
 
@@ -449,12 +413,12 @@ export const rejectLog = async (req, res) => {
   }
 
   try {
-    const expectedStatus = req.user.role === 'Team Lead' ? 'Pending Team Lead' : 'Pending Manager';
+    const expectedStatus = 'Pending Team Lead';
 
     if (isFallback()) {
       const log = memoryDb.tables.pending_production_logs.find(pl => pl.id === parseInt(pending_log_id) && pl.approval_status === expectedStatus);
       if (!log) {
-        return res.status(404).json({ error: "Pending production log not found or already processed for your role." });
+        return res.status(404).json({ error: "Pending production log not found or already processed." });
       }
       log.approval_status = 'Rejected';
       log.rejection_reason = rejection_reason;
@@ -469,7 +433,7 @@ export const rejectLog = async (req, res) => {
     `, [rejection_reason, pending_log_id, expectedStatus]);
 
     if (updateRes.rowCount === 0) {
-      return res.status(404).json({ error: "Pending production log not found or already processed for your role." });
+      return res.status(404).json({ error: "Pending production log not found or already processed." });
     }
 
     res.json({ success: true, log: updateRes.rows[0] });

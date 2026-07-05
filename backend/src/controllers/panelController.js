@@ -319,7 +319,7 @@ export const progressRepair = async (req, res) => {
       return res.json({
         success: true,
         pending: true,
-        message: "Work logged successfully. Awaiting Team Lead & Manager clearance approvals."
+        message: "Work logged successfully. Awaiting Team Lead clearance approval."
       });
     }
 

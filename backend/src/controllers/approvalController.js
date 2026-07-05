@@ -57,39 +57,6 @@ export const tlApprove = async (req, res) => {
     return res.status(400).json({ error: "Missing pending_log_id." });
   }
 
-  try {
-    if (isFallback()) {
-      const log = memoryDb.updatePendingLogStatus(Number(pending_log_id), 'Pending Manager', req.user.id, 'teamlead');
-      if (!log) {
-        return res.status(404).json({ error: "Pending approval log not found or already advanced." });
-      }
-      return res.json({ success: true, log });
-    }
-
-    const updateRes = await query(`
-      UPDATE pending_logs 
-      SET approval_status = 'Pending Manager', team_lead_id = $1, team_lead_approved_at = NOW()
-      WHERE id = $2 AND approval_status = 'Pending Team Lead'
-      RETURNING *
-    `, [req.user.id, pending_log_id], req.user);
-
-    if (updateRes.rowCount === 0) {
-      return res.status(404).json({ error: "Pending approval log not found or already advanced." });
-    }
-
-    res.json({ success: true, log: updateRes.rows[0] });
-  } catch (err) {
-    console.error('TL approve error:', err);
-    res.status(500).json({ error: "Server error during Team Lead approval." });
-  }
-};
-
-export const managerApprove = async (req, res) => {
-  const { pending_log_id } = req.body;
-  if (!pending_log_id) {
-    return res.status(400).json({ error: "Missing pending_log_id." });
-  }
-
   const useTx = !isFallback();
   const txClient = useTx ? await pool.connect() : null;
 
@@ -99,11 +66,11 @@ export const managerApprove = async (req, res) => {
     // Fetch pending log details
     let pLog = null;
     if (isFallback()) {
-      pLog = memoryDb.tables.pending_logs.find(pl => pl.id === Number(pending_log_id) && pl.approval_status === 'Pending Manager');
+      pLog = memoryDb.tables.pending_logs.find(pl => pl.id === Number(pending_log_id) && pl.approval_status === 'Pending Team Lead');
     } else {
       const logRes = await txClient.query(`
         SELECT * FROM pending_logs 
-        WHERE id = $1 AND approval_status = 'Pending Manager'
+        WHERE id = $1 AND approval_status = 'Pending Team Lead'
       `, [pending_log_id]);
       if (logRes.rowCount > 0) pLog = logRes.rows[0];
     }
@@ -182,13 +149,15 @@ export const managerApprove = async (req, res) => {
       }
     }
 
-    // 3. Mark pending log as Approved
+    // 3. Mark pending log as Approved by Team Lead
     if (isFallback()) {
-      memoryDb.updatePendingLogStatus(pLog.id, 'Approved', req.user.id, 'manager');
+      pLog.approval_status = 'Approved';
+      pLog.team_lead_id = req.user.id;
+      pLog.team_lead_approved_at = new Date().toISOString();
     } else {
       await txClient.query(`
         UPDATE pending_logs 
-        SET approval_status = 'Approved', manager_id = $1, manager_approved_at = NOW()
+        SET approval_status = 'Approved', team_lead_id = $1, team_lead_approved_at = NOW()
         WHERE id = $2
       `, [req.user.id, pending_log_id]);
     }
@@ -205,7 +174,7 @@ export const managerApprove = async (req, res) => {
       await txClient.query('ROLLBACK');
       txClient.release();
     }
-    console.error('Manager approve error:', err);
+    console.error('TL approve error:', err);
     res.status(500).json({ error: "Failed to finalize quality clearance transaction." });
   }
 };
@@ -217,14 +186,14 @@ export const rejectLog = async (req, res) => {
   }
 
   try {
-    const expectedStatus = req.user.role === 'Team Lead' ? 'Pending Team Lead' : 'Pending Manager';
+    const expectedStatus = 'Pending Team Lead';
 
     if (isFallback()) {
       const log = memoryDb.tables.pending_logs.find(pl => pl.id === Number(pending_log_id) && pl.approval_status === expectedStatus);
       if (!log) {
-        return res.status(404).json({ error: "Pending approval log not found or already processed for your role." });
+        return res.status(404).json({ error: "Pending approval log not found or already processed." });
       }
-      memoryDb.updatePendingLogStatus(log.id, 'Rejected', req.user.id, req.user.role === 'Team Lead' ? 'teamlead' : 'manager', rejection_reason);
+      memoryDb.updatePendingLogStatus(log.id, 'Rejected', req.user.id, 'teamlead', rejection_reason);
       return res.json({ success: true, log });
     }
 
@@ -236,7 +205,7 @@ export const rejectLog = async (req, res) => {
     `, [rejection_reason, pending_log_id, expectedStatus], req.user);
 
     if (updateRes.rowCount === 0) {
-      return res.status(404).json({ error: "Pending approval log not found or already processed for your role." });
+      return res.status(404).json({ error: "Pending approval log not found or already processed." });
     }
 
     res.json({ success: true, log: updateRes.rows[0] });
