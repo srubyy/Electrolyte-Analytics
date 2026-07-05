@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Cpu, Wrench, ArrowRight, Check, CheckCheck, X, ShieldAlert, CheckCircle, RefreshCw, Search, ToggleLeft, ToggleRight } from 'lucide-react'; import { useAuth } from '../../context/AuthContext';
 
 // Import feature components
-import StationChecklist from '../../features/workflows/StationChecklist';
+
 import PresetRemarksSelect from '../../features/workflows/PresetRemarksSelect';
 import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineIndicator';
 
@@ -299,136 +299,30 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
         />
       </div>
 
-      <div className="widescreen-grid">
-        {/* Left Column: Lot Status & ESD checklist */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20, height: 'fit-content' }}>
-            <div>
-              <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Cpu size={16} /> Lot Checksum & Yield Vitals
-              </h3>
-              {lotProductionStats ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                      <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Inward Received</span>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: 4 }}>
-                        {lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>PCBs</span>
-                      </div>
-                    </div>
-                     <div style={{ padding: 10, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--card-border)' }}>
-                      <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'uppercase' }}>Shortage</span>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: lotProductionStats.qty_sent - lotProductionStats.received_qty > 0 ? '#f87171' : '#10b981', marginTop: 4 }}>
-                        {lotProductionStats.qty_sent - lotProductionStats.received_qty} <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>units</span>
-                      </div>
-                    </div>
-                  </div>
+      {/* Vetting Queue / Logs form (Full Width) */}
+      <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
+        {user?.role === 'Employee' ? (
+          <div>
+            <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16 }}>
+              Log Production Batch - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}
+            </h2>
 
-                  {/* Stage-wise throughput metrics */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-main)' }}>Stage-wise Active Throughput:</div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      <span>Step 1: Inward (Lot Received)</span>
-                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{lotProductionStats.received_qty} units</span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      <span>Step 2: Segregation</span>
-                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
-                        {parseInt(lotProductionStats.steps[2]?.repairable_qty || 0)} Rep • {parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)} Scrap
-                      </span>
-                    </div>
-
-                    {/* Checksum discrepancy warnings */}
-                    {parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) > 0 &&
-                      parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0) !== lotProductionStats.received_qty && (
-                        <div style={{ color: '#ef4444', fontSize: '0.65rem', background: 'rgba(239, 68, 68, 0.05)', padding: 6, borderRadius: 6, border: '1px solid var(--card-border)' }}>
-                          ⚠️ DISCREPANCY DETECTED: Segregated count ({parseInt(lotProductionStats.steps[2]?.repairable_qty || 0) + parseInt(lotProductionStats.steps[2]?.scrap_qty || 0)}) does not match Inward count ({lotProductionStats.received_qty})!
-                        </div>
-                      )}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      <span>Step 3: Programming</span>
-                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
-                        {parseInt(lotProductionStats.steps[3]?.code_ok || 0)} OK • {parseInt(lotProductionStats.steps[3]?.code_not_ok || 0)} Fail
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      <span>Step 4: 1st Testing</span>
-                      <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>
-                        {parseInt(lotProductionStats.steps[4]?.qty_passed || 0)} Passed • {parseInt(lotProductionStats.steps[4]?.qty_failed || 0)} Failed
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                      <span>Step 12: Final Entry (Dispatch)</span>
-                      <span style={{ color: '#10b981', fontWeight: 700 }}>{parseInt(lotProductionStats.steps[12]?.entry_count || 0)} Dispatched</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{
-                  padding: '16px',
-                  background: 'var(--card-bg)',
-                  border: '1px dashed rgba(255, 255, 255, 0.06)',
-                  borderRadius: 10,
-                  textAlign: 'center',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 8,
-                  margin: '8px 0'
-                }}>
-                  <span className="pulse-indicator" style={{ background: '#e11d48', width: 8, height: 8, borderRadius: '50%', boxShadow: '0 0 10px #e11d48' }}></span>
-                  <div style={{ fontSize: '0.72rem', color: '#fda4af', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Telemetry Link Offline</div>
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    Select an active production lot from the header to link this station terminal and synchronize real-time stage checksum metrics.
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Product selection */}
-            <div>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>PCB Product Type:</label>
-              <select
-                value={productionPcbType}
-                onChange={e => setProductionPcbType(e.target.value)}
-                style={{ padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 8, width: '100%', cursor: 'pointer' }}
-              >
-                <option value="GV3 Digital PCB">GV3 Digital PCB</option>
-                <option value="GV2 Remote Main PCB">GV2 Remote Main PCB</option>
-                <option value="GV4 Studio+ Remote PCB">GV4 Studio+ Remote PCB</option>
-                <option value="GV3 Power PCB">GV3 Power PCB</option>
-                <option value="GV4 Alpha Regulator PCB">GV4 Alpha Regulator PCB</option>
-                <option value="GV2 Regulator">GV2 Regulator</option>
-              </select>
-            </div>
-
-            {/* ESD Checklist */}
-            <StationChecklist
-              esdWristStrap={esdWristStrap}
-              setEsdWristStrap={setEsdWristStrap}
-              ionizerOn={ionizerOn}
-              setIonizerOn={setIonizerOn}
-              esdMatGrounded={esdMatGrounded}
-              setEsdMatGrounded={setEsdMatGrounded}
-            />
-          </div>
-
-        </div>
-
-        {/* Right Column: Vetting Queue / Logs form */}
-        <div className="glass-panel" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {user?.role === 'Employee' ? (
-            <div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16 }}>
-                Log Production Batch - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}
-              </h2>
-
-              <form onSubmit={handleProductionLogSubmit}>
+            <form onSubmit={handleProductionLogSubmit}>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, display: 'block', marginBottom: 6 }}>PCB Product Type</label>
+                <select
+                  value={productionPcbType}
+                  onChange={e => setProductionPcbType(e.target.value)}
+                  style={{ padding: '8px 12px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 8, width: '100%', cursor: 'pointer' }}
+                >
+                  <option value="GV3 Digital PCB">GV3 Digital PCB</option>
+                  <option value="GV2 Remote Main PCB">GV2 Remote Main PCB</option>
+                  <option value="GV4 Studio+ Remote PCB">GV4 Studio+ Remote PCB</option>
+                  <option value="GV3 Power PCB">GV3 Power PCB</option>
+                  <option value="GV4 Alpha Regulator PCB">GV4 Alpha Regulator PCB</option>
+                  <option value="GV2 Regulator">GV2 Regulator</option>
+                </select>
+              </div>
                 {selectedProductionStep === 1 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
@@ -906,7 +800,6 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
             </div>
           )}
         </div>
-      </div>
 
       {/* Step Active PCBs Detail Modal */}
       {showStepDetailModal && stepDetailStepNo && (
