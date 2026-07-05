@@ -18,7 +18,8 @@ const STEP_NAMES = [
 const PipelineIndicator = ({ 
   selectedStep, 
   onSelectStep, 
-  onViewStepPanels 
+  onViewStepPanels,
+  hidePCBsButton
 }) => {
   return (
     <div className="pipeline-step-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
@@ -42,26 +43,28 @@ const PipelineIndicator = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
               <span style={{ fontSize: '0.7rem', color: isActive ? 'var(--color-primary)' : 'var(--text-muted)', fontWeight: 800 }}>Step {stepNo}</span>
-              <span 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onViewStepPanels(stepNo);
-                }}
-                style={{
-                  fontSize: '0.62rem',
-                  color: 'var(--color-primary)',
-                  background: 'rgba(255, 212, 0, 0.1)',
-                  border: '1px solid var(--card-border)',
-                  borderRadius: 4,
-                  padding: '1px 5px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  fontWeight: 700
-                }}
-                title="View PCBs details at this step"
-              >
-                🔍 PCBs
-              </span>
+              {!hidePCBsButton && (
+                <span 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onViewStepPanels(stepNo);
+                  }}
+                  style={{
+                    fontSize: '0.62rem',
+                    color: 'var(--color-primary)',
+                    background: 'rgba(255, 212, 0, 0.1)',
+                    border: '1px solid var(--card-border)',
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    fontWeight: 700
+                  }}
+                  title="View PCBs details at this step"
+                >
+                  🔍 PCBs
+                </span>
+              )}
             </div>
             <div style={{ fontSize: '0.72rem', fontWeight: isActive ? 800 : 500, color: isActive ? '#fff' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
               {name}

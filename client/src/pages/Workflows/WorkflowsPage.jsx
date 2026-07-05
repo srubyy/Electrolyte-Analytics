@@ -294,6 +294,7 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
           selectedStep={selectedProductionStep}
           onSelectStep={(stepNo) => { setSelectedProductionStep(stepNo); setStepInputs({}); }}
           onViewStepPanels={(stepNo) => { fetchStepPanels(stepNo); setShowStepDetailModal(true); }}
+          hidePCBsButton={user?.role === 'Employee'}
         />
       </div>
 
