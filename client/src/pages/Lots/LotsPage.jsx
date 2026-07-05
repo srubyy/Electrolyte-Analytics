@@ -657,7 +657,7 @@ const LotsPage = ({ selectedLotNo, showToast }) => {
                   {/* Shortage Discrepancy Highlight */}
                   {shortage !== 0 && (
                     <div className="badge badge-danger" style={{ display: 'flex', width: '100%', marginBottom: 12, justifyContent: 'center', background: 'rgba(239,68,68,0.1)', color: '#fca5a5', border: '0.5px solid rgba(239,68,68,0.2)' }}>
-                      <AlertTriangle size={12} /> Discrepancy: {shortage > 0 ? `${shortage} units Shortage` : `${Math.abs(shortage)} units Excess`} (Expected: {lot.qty_sent} vs Inward: {lot.received_qty})
+                      <AlertTriangle size={12} /> Discrepancy: {shortage > 0 ? `${shortage} units Shortage` : `${Math.abs(shortage)} units Excess`} (Chalaan Qty: {lot.qty_sent} vs Inward: {lot.received_qty})
                     </div>
                   )}
 

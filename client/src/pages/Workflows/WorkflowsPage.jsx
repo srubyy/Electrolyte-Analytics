@@ -432,6 +432,16 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                 {selectedProductionStep === 1 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
+                      <label>Chalaan Quantity</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="e.g. 678"
+                        value={stepInputs.expected_qty || ''}
+                        onChange={e => setStepInputs({ ...stepInputs, expected_qty: parseInt(e.target.value) || '' })}
+                      />
+                    </div>
+                    <div className="form-group">
                       <label>Quantity Received</label>
                       <input
                         type="number"
@@ -439,16 +449,6 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                         placeholder="e.g. 658"
                         value={stepInputs.qty_received || ''}
                         onChange={e => setStepInputs({ ...stepInputs, qty_received: parseInt(e.target.value) || '' })}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Expected Quantity (Atomberg quantity)</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 678"
-                        value={stepInputs.expected_qty || ''}
-                        onChange={e => setStepInputs({ ...stepInputs, expected_qty: parseInt(e.target.value) || '' })}
                       />
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -770,7 +770,7 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                     filteredPendingLogs.filter(p => p.operator_id === user.id).map(p => (
                       <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 8, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 6, fontSize: '0.72rem' }}>
                         <div>
-                          <strong>{p.pcb_type}</strong> • Qty: {Object.values(p.step_data)[0]} units
+                          <strong>{p.pcb_type}</strong> • {p.step_no === 1 ? `Chalaan: ${p.step_data.expected_qty || 0} • Recv: ${p.step_data.qty_received || 0}` : `Qty: ${Object.values(p.step_data)[0]}`}
                           {p.rejection_reason && <div style={{ color: '#ef4444', fontSize: '0.65rem' }}>❌ Rejected Reason: {p.rejection_reason}</div>}
                         </div>
                         <span className={`badge ${p.approval_status === 'Rejected' ? 'badge-danger' : 'badge-warning'}`}>{p.approval_status}</span>
@@ -839,7 +839,9 @@ const WorkflowsPage = ({ selectedLotNo, onChangeLot, showToast }) => {
                             </div>
                             {dataEntries.map(([k, v]) => (
                               <div key={k} style={{ padding: '6px 8px', background: 'var(--input-bg)', borderRadius: 6 }}>
-                                <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'capitalize' }}>{k.replace('_', ' ')}</span>
+                                <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'capitalize' }}>
+                                  {k === 'expected_qty' ? 'Chalaan Quantity' : k.replace('_', ' ')}
+                                </span>
                                 <strong style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>{String(v)}</strong>
                               </div>
                             ))}
