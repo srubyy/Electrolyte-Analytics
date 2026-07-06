@@ -19,12 +19,17 @@ const PipelineIndicator = ({
   selectedStep, 
   onSelectStep, 
   onViewStepPanels,
-  hidePCBsButton
+  hidePCBsButton,
+  steps = []
 }) => {
+  const displaySteps = steps.length > 0 
+    ? steps.map(s => ({ step_no: s.step_no, name: s.name }))
+    : STEP_NAMES.map((name, index) => ({ step_no: index + 1, name }));
+
   return (
     <div className="pipeline-step-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 10 }}>
-      {STEP_NAMES.map((name, index) => {
-        const stepNo = index + 1;
+      {displaySteps.map((step) => {
+        const stepNo = step.step_no;
         const isActive = selectedStep === stepNo;
         return (
           <div
@@ -67,7 +72,7 @@ const PipelineIndicator = ({
               )}
             </div>
             <div style={{ fontSize: '0.72rem', fontWeight: isActive ? 800 : 500, color: isActive ? '#fff' : '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>
-              {name}
+              {step.name}
             </div>
           </div>
         );

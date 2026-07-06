@@ -10,7 +10,6 @@ print("Generating seed_new.sql dynamically with normalized schema relationships.
 BCRYPT_PASSWORD_HASH = "$2b$10$lMGisEmMq5w8.GUVjc.gzO.e1JbAG97vn8a/paPQYyMyaCi5ssHs2"
 
 clients = [
-    {"name": "Xtreme Media Pvt. Ltd.", "contact": "John Doe", "email": "contact@xtrememedia.co"},
     {"name": "Atomberg", "contact": "Jane Smith", "email": "info@atomberg.com"},
     {"name": "Bajaj", "contact": "Bajaj Spares Manager", "email": "spares@bajaj.com"}
 ]

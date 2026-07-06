@@ -6,20 +6,7 @@ import { Lot } from '../models/Lot.js';
 import { Transaction } from '../models/Transaction.js';
 import { resend } from '../utils/email.js';
 
-const STEP_NAMES = [
-  "Inward",
-  "Segregation",
-  "Programming",
-  "1st Testing",
-  "Debug",
-  "Entry",
-  "Cleaning",
-  "QC After Cleaning",
-  "Marking & Coating",
-  "Final Testing",
-  "Final Entry",
-  "Packing"
-];
+
 
 export const getUsers = async (req, res) => {
   try {

@@ -274,19 +274,45 @@ export const findClientByName = (name) => {
   return tables.clients.find(r => r.name.toLowerCase() === name.toLowerCase()) || null;
 };
 
-export const createClient = (name) => {
+export const createClient = (name, contact = '', email = '') => {
   const existing = findClientByName(name);
   if (existing) return existing;
 
   const newClient = {
     id: tables.clients.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1,
     name,
-    contact: '',
-    email: '',
+    contact,
+    email,
     created_at: new Date().toISOString()
   };
   tables.clients.push(newClient);
   return newClient;
+};
+
+export const getStepsForClient = (clientId) => {
+  if (!clientId) {
+    return tables.repair_steps.filter(s => !s.client_id).sort((a, b) => a.step_no - b.step_no);
+  }
+  const clientSteps = tables.repair_steps.filter(s => s.client_id === Number(clientId));
+  if (clientSteps.length > 0) {
+    return clientSteps.sort((a, b) => a.step_no - b.step_no);
+  }
+  return tables.repair_steps.filter(s => !s.client_id).sort((a, b) => a.step_no - b.step_no);
+};
+
+export const saveStepsForClient = (clientId, steps) => {
+  if (!clientId) return false;
+  tables.repair_steps = tables.repair_steps.filter(s => s.client_id !== Number(clientId));
+  steps.forEach((s, idx) => {
+    const nextId = tables.repair_steps.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
+    tables.repair_steps.push({
+      id: nextId,
+      client_id: Number(clientId),
+      step_no: s.step_no || (idx + 1),
+      name: s.name
+    });
+  });
+  return true;
 };
 
 // 3. Lots

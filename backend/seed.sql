@@ -16,10 +16,10 @@ INSERT INTO engineers (name, role, attendance_rate, avatar) VALUES ('Sharmila N'
 INSERT INTO engineers (name, role, attendance_rate, avatar) VALUES ('Vijay Kumar', 'Engineer', 94.8, 'https://api.dicebear.com/7.x/adventurer/svg?seed=VijayKumar') ON CONFLICT (name) DO NOTHING;
 
 -- Seed Lots
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (17, 'DX128', 'P5.9', 'Xtreme Media Pvt. Ltd.', 260, 260, 'Complete', 'Successfully completed all refurbishment steps and dispatched.') ON CONFLICT (lot_no) DO NOTHING;
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (18, 'DX128', 'P5.9', 'Xtreme Media Pvt. Ltd.', 200, 200, 'In Process', '139 dispatched. 61 pending in various steps. 48 panels pending dispatch.') ON CONFLICT (lot_no) DO NOTHING;
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (19, 'DX128', 'P5.9', 'Xtreme Media Pvt. Ltd.', 500, 500, 'In Process', 'Large batch, currently in early triage and panel assignment stages.') ON CONFLICT (lot_no) DO NOTHING;
-INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (20, 'DX109', 'P5.9', 'Xtreme Media Pvt. Ltd.', 50, 50, 'In Process', 'Received recently, initial panel assign in progress.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (17, 'DX128', 'P5.9', 'Atomberg', 260, 260, 'Complete', 'Successfully completed all refurbishment steps and dispatched.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (18, 'DX128', 'P5.9', 'Bajaj', 200, 200, 'In Process', '139 dispatched. 61 pending in various steps. 48 panels pending dispatch.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (19, 'DX128', 'P5.9', 'Atomberg', 500, 500, 'In Process', 'Large batch, currently in early triage and panel assignment stages.') ON CONFLICT (lot_no) DO NOTHING;
+INSERT INTO lots (lot_no, batch_no, pixel_pitch, client_name, qty_sent, received_qty, status, remarks) VALUES (20, 'DX109', 'P5.9', 'Bajaj', 50, 50, 'In Process', 'Received recently, initial panel assign in progress.') ON CONFLICT (lot_no) DO NOTHING;
 
 -- Seed Panels and Activities for Lot 18
 INSERT INTO panels (lot_id, sr_no, side, barcode, status, current_step, assigned_engineer_id) VALUES ((SELECT id FROM lots WHERE lot_no = 18), 100, 'Left', 'ESRP2P5918E26128L0100', 'Repairable', 14, (SELECT id FROM engineers WHERE name = 'Mayuri S')) ON CONFLICT (barcode) DO NOTHING;

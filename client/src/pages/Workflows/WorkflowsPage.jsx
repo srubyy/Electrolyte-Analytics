@@ -22,6 +22,57 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
   const [rejectionLogInputId, setRejectionLogInputId] = useState(null);
   const [rejectionLogText, setRejectionLogText] = useState('');
 
+  const [steps, setSteps] = useState([
+    { step_no: 1, name: "Inward" },
+    { step_no: 2, name: "Segregation" },
+    { step_no: 3, name: "Programming" },
+    { step_no: 4, name: "1st Testing" },
+    { step_no: 5, name: "Debug" },
+    { step_no: 6, name: "Entry" },
+    { step_no: 7, name: "Cleaning" },
+    { step_no: 8, name: "QC After Cleaning" },
+    { step_no: 9, name: "Marking & Coating" },
+    { step_no: 10, name: "Final Testing" },
+    { step_no: 11, name: "Final Entry" },
+    { step_no: 12, name: "Packing" }
+  ]);
+
+  useEffect(() => {
+    const loadCustomSteps = async () => {
+      if (!productionLotId) return;
+      const activeLot = stockData.find(l => l.id === parseInt(productionLotId));
+      if (activeLot && activeLot.client_id) {
+        try {
+          const res = await apiFetch(`/api/stock/clients/${activeLot.client_id}/steps`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.length > 0) {
+              setSteps(data);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+      setSteps([
+        { step_no: 1, name: "Inward" },
+        { step_no: 2, name: "Segregation" },
+        { step_no: 3, name: "Programming" },
+        { step_no: 4, name: "1st Testing" },
+        { step_no: 5, name: "Debug" },
+        { step_no: 6, name: "Entry" },
+        { step_no: 7, name: "Cleaning" },
+        { step_no: 8, name: "QC After Cleaning" },
+        { step_no: 9, name: "Marking & Coating" },
+        { step_no: 10, name: "Final Testing" },
+        { step_no: 11, name: "Final Entry" },
+        { step_no: 12, name: "Packing" }
+      ]);
+    };
+    loadCustomSteps();
+  }, [productionLotId, stockData]);
+
   // Station safety checklist
   const [esdWristStrap, setEsdWristStrap] = useState(false);
   const [ionizerOn, setIonizerOn] = useState(false);
@@ -248,6 +299,13 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
     ? (selectedLotNo ? pendingProductionLogs.filter(p => p.lot_no === parseInt(selectedLotNo)) : pendingProductionLogs)
     : [];
 
+  const activeStepName = steps[selectedProductionStep - 1]?.name || '';
+  const knownSteps = [
+    'Inward', 'Segregation', 'Programming', '1st Testing', 'Debug', 'Entry',
+    'Cleaning', 'QC After Cleaning', 'Marking & Coating', 'Final Testing', 'Final Entry', 'Packing'
+  ];
+  const isGenericCustomStep = activeStepName && !knownSteps.includes(activeStepName);
+
   return (
     <div>
       <div className="app-header">
@@ -301,13 +359,14 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
       {/* 12-Step Visual Pipeline Grid */}
       <div className="glass-panel" style={{ padding: 16, marginBottom: 20 }}>
         <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Wrench size={14} /> Interactive 12-Step Pipeline Flow (Click to Select Step)
+          <Wrench size={14} /> Interactive {steps.length}-Step Pipeline Flow (Click to Select Step)
         </h3>
         <PipelineIndicator
           selectedStep={selectedProductionStep}
           onSelectStep={(stepNo) => { setSelectedProductionStep(stepNo); setStepInputs({}); }}
           onViewStepPanels={(stepNo) => { fetchStepPanels(stepNo); setShowStepDetailModal(true); }}
           hidePCBsButton={user?.role === 'Employee'}
+          steps={steps}
         />
       </div>
 
@@ -438,7 +497,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
           {user?.role === 'Employee' ? (
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16 }}>
-                Log Production Batch - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}
+                Log Production Batch - Step {selectedProductionStep}: {steps[selectedProductionStep - 1]?.name || 'Unknown Step'}
               </h2>
 
               <form onSubmit={handleProductionLogSubmit}>
@@ -457,10 +516,10 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                     <option value="GV2 Regulator">GV2 Regulator</option>
                   </select>
                 </div>
-                {selectedProductionStep === 1 && (
+                {activeStepName === 'Inward' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
-                      <label>Chalaan Quantity</label>
+                      <label>Challan Quantity</label>
                       <input
                         type="number"
                         required
@@ -485,7 +544,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 2 && (
+                {activeStepName === 'Segregation' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Repairable Quantity</label>
@@ -519,7 +578,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 3 && (
+                {activeStepName === 'Programming' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Code OK (Passed)</label>
@@ -547,7 +606,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 4 && (
+                {activeStepName === '1st Testing' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Quantity Passed (OK)</label>
@@ -573,7 +632,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 5 && (
+                {activeStepName === 'Debug' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Quantity Debug OK</label>
@@ -609,7 +668,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 6 && (
+                {activeStepName === 'Entry' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Entry Count</label>
@@ -634,7 +693,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 7 && (
+                {activeStepName === 'Cleaning' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Quantity Cleaned</label>
@@ -660,7 +719,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 8 && (
+                {activeStepName === 'QC After Cleaning' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Quantity Passed</label>
@@ -686,7 +745,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 9 && (
+                {activeStepName === 'Marking & Coating' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Quantity Marked & Coated</label>
@@ -702,7 +761,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 10 && (
+                {activeStepName === 'Final Testing' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Quantity Passed</label>
@@ -726,7 +785,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 12 && (
+                {activeStepName === 'Packing' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Bubble Packed</label>
@@ -759,7 +818,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                {selectedProductionStep === 11 && (
+                {activeStepName === 'Final Entry' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div className="form-group">
                       <label>Entry Count</label>
@@ -783,6 +842,30 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
+                {isGenericCustomStep && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="form-group">
+                      <label>Quantity Passed</label>
+                      <input
+                        type="number"
+                        required
+                        value={stepInputs.qty_passed || ''}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_passed: parseInt(e.target.value) || '' })}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Quantity Failed</label>
+                      <input
+                        type="number"
+                        required
+                        value={stepInputs.qty_failed || ''}
+                        onChange={e => setStepInputs({ ...stepInputs, qty_failed: parseInt(e.target.value) || '' })}
+                      />
+                    </div>
+                    <PresetRemarksSelect stepNo={selectedProductionStep} stepInputs={stepInputs} setStepInputs={setStepInputs} />
+                  </div>
+                )}
+
                 <button type="submit" className="btn" style={{ marginTop: 16 }}>
                   Submit Step Production Log <ArrowRight size={14} />
                 </button>
@@ -798,7 +881,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                     filteredPendingLogs.filter(p => p.operator_id === user.id).map(p => (
                       <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, padding: 8, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: 6, fontSize: '0.72rem' }}>
                         <div>
-                          <strong>{p.pcb_type}</strong> • {p.step_no === 1 ? `Chalaan: ${p.step_data.expected_qty || 0} • Recv: ${p.step_data.qty_received || 0}` : `Qty: ${Object.values(p.step_data)[0]}`}
+                          <strong>{p.pcb_type}</strong> • {p.step_no === 1 ? `Challan: ${p.step_data.expected_qty || 0} • Recv: ${p.step_data.qty_received || 0}` : `Qty: ${Object.values(p.step_data)[0]}`}
                           {p.rejection_reason && <div style={{ color: '#ef4444', fontSize: '0.65rem' }}>❌ Rejected Reason: {p.rejection_reason}</div>}
                         </div>
                         <span className={`badge ${p.approval_status === 'Rejected' ? 'badge-danger' : 'badge-warning'}`}>{p.approval_status}</span>
@@ -812,7 +895,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
             /* Vetting & Approvals Queue for Selected Step (TL / Manager) */
             <div>
               <h2 className="vetting-queue-header" style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-primary)', borderBottom: '1px solid var(--card-border)', paddingBottom: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-                <span>Vetting & Approvals Queue - Step {selectedProductionStep}: {STEP_NAMES[selectedProductionStep - 1]}</span>
+                <span>Vetting & Approvals Queue - Step {selectedProductionStep}: {steps[selectedProductionStep - 1]?.name || 'Unknown Step'}</span>
                 <button
                   onClick={() => fetchPendingProductionLogs(selectedProductionStep)}
                   className="btn btn-secondary"
@@ -868,7 +951,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                             {dataEntries.map(([k, v]) => (
                               <div key={k} style={{ padding: '6px 8px', background: 'var(--input-bg)', borderRadius: 6 }}>
                                 <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)', display: 'block', textTransform: 'capitalize' }}>
-                                  {k === 'expected_qty' ? 'Chalaan Quantity' : k.replace('_', ' ')}
+                                  {k === 'expected_qty' ? 'Challan Quantity' : k.replace('_', ' ')}
                                 </span>
                                 <strong style={{ fontSize: '0.72rem', color: 'var(--color-primary)' }}>{String(v)}</strong>
                               </div>
@@ -945,7 +1028,7 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
               <div>
                 <span className="app-subtitle" style={{ fontSize: '0.65rem' }}>Stepwise Live Inventory</span>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginTop: 2 }}>
-                  Step {stepDetailStepNo}: {STEP_NAMES[stepDetailStepNo - 1]}
+                  Step {stepDetailStepNo}: {steps[stepDetailStepNo - 1]?.name || 'Unknown Step'}
                 </h3>
               </div>
               <button

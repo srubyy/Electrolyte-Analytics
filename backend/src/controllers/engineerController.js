@@ -17,13 +17,6 @@ export const getLeaderboard = async (req, res) => {
     const employees = await User.getEmployees();
     const scores = [];
 
-    // Helper step_id resolver for SQL mode
-    let stepId11 = null;
-    if (!isFallback()) {
-      const stepRes = await pool.query('SELECT id FROM repair_steps WHERE step_no = 11');
-      if (stepRes.rowCount > 0) stepId11 = stepRes.rows[0].id;
-    }
-
     for (const eng of employees) {
       let pcbsRepaired = 0;
       let faultyCount = 0;
@@ -33,10 +26,10 @@ export const getLeaderboard = async (req, res) => {
       if (isFallback()) {
         const logs = memoryDb.tables.panel_logs.filter(l => l.engineer_id === eng.id);
         
-        // 1. PCBs Repaired (Step 11 complete)
+        // 1. PCBs Repaired (Step Final Entry complete)
         const step11Logs = logs.filter(l => {
           const step = memoryDb.tables.repair_steps.find(s => s.id === l.step_id);
-          return step && step.step_no === 11;
+          return step && step.name === 'Final Entry';
         });
         const uniquePanelsRep = new Set(step11Logs.map(l => l.panel_id));
         pcbsRepaired = uniquePanelsRep.size;
@@ -51,11 +44,12 @@ export const getLeaderboard = async (req, res) => {
         speedCount = logs.filter(l => new Date(l.timestamp) >= thirtyDaysAgo).length;
 
       } else {
-        // 1. PCBs Repaired (Step 11 complete)
+        // 1. PCBs Repaired (Step Final Entry complete)
         const repRes = await pool.query(`
-          SELECT COUNT(DISTINCT panel_id) FROM panel_logs 
-          WHERE engineer_id = $1 AND step_id = $2
-        `, [eng.id, stepId11 || 11]);
+          SELECT COUNT(DISTINCT pl.panel_id) FROM panel_logs pl
+          JOIN repair_steps rs ON pl.step_id = rs.id
+          WHERE pl.engineer_id = $1 AND rs.name = 'Final Entry'
+        `, [eng.id]);
         pcbsRepaired = parseInt(repRes.rows[0].count);
 
         // 2. First-pass Yield

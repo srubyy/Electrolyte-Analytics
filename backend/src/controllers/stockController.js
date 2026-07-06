@@ -3,6 +3,7 @@ import { Lot } from '../models/Lot.js';
 import { Client } from '../models/Client.js';
 import { Transaction } from '../models/Transaction.js';
 import { Panel } from '../models/Panel.js';
+import { RepairStep } from '../models/RepairStep.js';
 
 // Helper function to check Complete state lock
 const checkCompleteLock = async (lotId, userRole, clientTransaction = null) => {
@@ -470,5 +471,110 @@ export const toggleComplete = async (req, res) => {
     }
     console.error('Lot status toggle error:', err);
     res.status(500).json({ error: "Failed to toggle lot status." });
+  }
+};
+
+export const addClient = async (req, res) => {
+  const { name, contact, email, steps, lots } = req.body;
+  if (!name) {
+    return res.status(400).json({ error: "Company name is required." });
+  }
+
+  const useTx = !isFallback();
+  const txClient = useTx ? await pool.connect() : null;
+  try {
+    if (useTx) await txClient.query('BEGIN');
+
+    // Create client
+    const newClient = await Client.create(name, contact, email, txClient);
+
+    // Save custom steps
+    if (Array.isArray(steps) && steps.length > 0) {
+      await RepairStep.saveCustomSteps(newClient.id, steps, txClient);
+    }
+
+    // Save initial lots
+    if (Array.isArray(lots) && lots.length > 0) {
+      for (const lot of lots) {
+        // Validate duplicate lot_no
+        const existingLot = await Lot.findByLotNo(parseInt(lot.lot_no), txClient);
+        if (existingLot) {
+          throw new Error(`Lot number ${lot.lot_no} already exists.`);
+        }
+
+        const newLot = await Lot.create({
+          lot_no: parseInt(lot.lot_no),
+          batch_no: lot.batch_no || 'Default_Batch',
+          pixel_pitch: lot.pixel_pitch || 'P5.9',
+          client_id: newClient.id,
+          qty_sent: parseInt(lot.qty_sent || 0),
+          received_qty: parseInt(lot.received_qty || 0),
+          remarks: lot.remarks || ''
+        }, txClient);
+
+        // Log transaction
+        await Transaction.create({
+          lot_id: newLot.id,
+          transaction_type: 'Inward',
+          qty: newLot.received_qty,
+          actor_id: req.user.id,
+          remarks: lot.remarks || 'Initial lot import during company creation'
+        }, txClient);
+      }
+    }
+
+    if (useTx) {
+      await txClient.query('COMMIT');
+      txClient.release();
+    }
+
+    res.status(201).json(newClient);
+  } catch (err) {
+    if (useTx && txClient) {
+      await txClient.query('ROLLBACK');
+      txClient.release();
+    }
+    console.error('Add client error:', err);
+    res.status(400).json({ error: err.message || "Failed to create client." });
+  }
+};
+
+export const getClientSteps = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const steps = await RepairStep.getAllForClient(id);
+    res.json(steps);
+  } catch (err) {
+    console.error('Fetch client steps error:', err);
+    res.status(500).json({ error: "Failed to fetch steps for this client." });
+  }
+};
+
+export const updateClientSteps = async (req, res) => {
+  const { id } = req.params;
+  const { steps } = req.body;
+  if (!Array.isArray(steps)) {
+    return res.status(400).json({ error: "Steps must be an array." });
+  }
+
+  const useTx = !isFallback();
+  const txClient = useTx ? await pool.connect() : null;
+  try {
+    if (useTx) await txClient.query('BEGIN');
+
+    await RepairStep.saveCustomSteps(id, steps, txClient);
+
+    if (useTx) {
+      await txClient.query('COMMIT');
+      txClient.release();
+    }
+    res.json({ message: "Steps updated successfully." });
+  } catch (err) {
+    if (useTx && txClient) {
+      await txClient.query('ROLLBACK');
+      txClient.release();
+    }
+    console.error('Update client steps error:', err);
+    res.status(500).json({ error: "Failed to update steps." });
   }
 };

@@ -2,22 +2,8 @@ import pool, { isFallback, query } from '../config/db.js';
 import { Panel } from '../models/Panel.js';
 import { Lot } from '../models/Lot.js';
 import { PendingLog } from '../models/PendingLog.js';
+import { RepairStep } from '../models/RepairStep.js';
 import * as memoryDb from '../services/memoryDb.js';
-
-const STEP_NAMES = [
-  "Inward",
-  "Segregation",
-  "Programming",
-  "1st Testing",
-  "Debug",
-  "Entry",
-  "Cleaning",
-  "QC After Cleaning",
-  "Marking & Coating",
-  "Final Testing",
-  "Final Entry",
-  "Packing"
-];
 
 export const getPanels = async (req, res) => {
   const { step_no } = req.query;
@@ -68,7 +54,7 @@ export const searchPanel = async (req, res) => {
       let panelRes;
       if (barcode) {
         panelRes = await query(`
-          SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, e.name as engineer_name 
+          SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, l.client_id, e.name as engineer_name 
           FROM panels p
           JOIN lots l ON p.lot_id = l.id
           LEFT JOIN users e ON p.assigned_engineer_id = e.id
@@ -76,7 +62,7 @@ export const searchPanel = async (req, res) => {
         `, [barcode.trim()]);
       } else if (sr_no && lot_no) {
         panelRes = await query(`
-          SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, e.name as engineer_name
+          SELECT p.*, l.lot_no, l.batch_no, l.pixel_pitch, l.client_id, e.name as engineer_name
           FROM panels p
           JOIN lots l ON p.lot_id = l.id
           LEFT JOIN users e ON p.assigned_engineer_id = e.id
@@ -119,6 +105,15 @@ export const searchPanel = async (req, res) => {
     let pendingInfo = null;
     let reworkInfo = null;
 
+    let clientId = null;
+    if (isFallback()) {
+      const lot = memoryDb.findLotById(panel.lot_id);
+      if (lot) clientId = lot.client_id;
+    } else {
+      clientId = panel.client_id;
+    }
+    const steps = await RepairStep.getAllForClient(clientId);
+
     if (isFallback()) {
       const pLog = memoryDb.tables.pending_logs
         .filter(pl => pl.panel_id === panel.id && ['Pending Team Lead', 'Rejected'].includes(pl.approval_status))
@@ -126,18 +121,21 @@ export const searchPanel = async (req, res) => {
         
       if (pLog) {
         const eng = memoryDb.tables.users.find(u => u.id === pLog.engineer_id);
+        const stepObj = steps.find(s => s.step_no === pLog.step_no);
+        const step_name = stepObj ? stepObj.name : `Step ${pLog.step_no}`;
+
         if (pLog.approval_status === 'Rejected') {
           reworkInfo = {
             rejection_reason: pLog.rejection_reason,
             step_no: pLog.step_no,
-            step_name: STEP_NAMES[pLog.step_no - 1]
+            step_name
           };
         } else {
           isLocked = true;
           pendingInfo = {
             id: pLog.id,
             step_no: pLog.step_no,
-            step_name: STEP_NAMES[pLog.step_no - 1],
+            step_name,
             approval_status: pLog.approval_status,
             engineer_name: eng ? eng.name : 'Unknown'
           };
@@ -154,18 +152,21 @@ export const searchPanel = async (req, res) => {
 
       if (pendingRes.rowCount > 0) {
         const pLog = pendingRes.rows[0];
+        const stepObj = steps.find(s => s.step_no === pLog.step_no);
+        const step_name = stepObj ? stepObj.name : `Step ${pLog.step_no}`;
+
         if (pLog.approval_status === 'Rejected') {
           reworkInfo = {
             rejection_reason: pLog.rejection_reason,
             step_no: pLog.step_no,
-            step_name: STEP_NAMES[pLog.step_no - 1]
+            step_name
           };
         } else {
           isLocked = true;
           pendingInfo = {
             id: pLog.id,
             step_no: pLog.step_no,
-            step_name: STEP_NAMES[pLog.step_no - 1],
+            step_name,
             approval_status: pLog.approval_status,
             engineer_name: pLog.engineer_name
           };
@@ -407,13 +408,31 @@ export const progressRepair = async (req, res) => {
           }
         }
 
+        // Resolve client_id and step name dynamically
+        let clientId = null;
+        if (isFallback()) {
+          const p = memoryDb.findPanelById(panel_id);
+          const lot = p ? memoryDb.findLotById(p.lot_id) : null;
+          if (lot) clientId = lot.client_id;
+        } else {
+          const lotRes = await txClient.query(
+            'SELECT l.client_id FROM panels p JOIN lots l ON p.lot_id = l.id WHERE p.id = $1',
+            [panel_id]
+          );
+          if (lotRes.rows[0]) clientId = lotRes.rows[0].client_id;
+        }
+
+        const steps = await RepairStep.getAllForClient(clientId);
+        const stepObj = steps.find(s => s.step_no === currentStepNo);
+        const stepName = stepObj ? stepObj.name : `Step ${currentStepNo}`;
+
         // Log Step OK
         await Panel.createLog({
           panel_id,
           step_no: currentStepNo,
           engineer_id,
           status: 'OK',
-          remark: remark || `Successfully completed step ${STEP_NAMES[currentStepNo - 1]}`
+          remark: remark || `Successfully completed step ${stepName}`
         }, txClient);
       }
 

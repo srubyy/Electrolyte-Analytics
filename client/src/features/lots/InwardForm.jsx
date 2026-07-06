@@ -54,7 +54,7 @@ const InwardForm = ({ onSubmit, onCancel, newLot, setNewLot, managerSignOff, set
         </div>
         <div className="metrics-grid" style={{ marginBottom: 0 }}>
           <div className="form-group">
-            <label>Client Qty Sent (Chalaan Quantity)</label>
+            <label>Client Qty Sent (Challan Quantity)</label>
             <input 
               type="number" 
               required 
@@ -82,7 +82,7 @@ const InwardForm = ({ onSubmit, onCancel, newLot, setNewLot, managerSignOff, set
               <AlertTriangle size={14} color="#ef4444" /> GRN DISCREPANCY DETECTED
             </div>
             <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: 8 }}>
-              The actual received quantity ({newLot.qty_received}) differs from Chalaan Quantity ({newLot.qty_sent}) by {diffQty} units.
+              The actual received quantity ({newLot.qty_received}) differs from Challan Quantity ({newLot.qty_sent}) by {diffQty} units.
             </p>
             {!['Superadmin', 'Manager'].includes(userRole) ? (
               <div style={{ color: '#f87171', fontSize: '0.7rem', fontWeight: 700 }}>

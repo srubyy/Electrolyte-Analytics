@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS lots (
     lot_no INTEGER UNIQUE NOT NULL,
     batch_no VARCHAR(50) NOT NULL, -- e.g., 'DX128'
     pixel_pitch VARCHAR(20) NOT NULL, -- e.g., 'P5.9'
-    client_name VARCHAR(100) NOT NULL, -- e.g., 'Atomberg', 'Xtreme Media'
+    client_name VARCHAR(100) NOT NULL, -- e.g., 'Atomberg', 'Bajaj'
     qty_sent INTEGER NOT NULL, -- Expected client count
     received_qty INTEGER NOT NULL, -- Actual inward count
     dispatched_qty INTEGER DEFAULT 0,

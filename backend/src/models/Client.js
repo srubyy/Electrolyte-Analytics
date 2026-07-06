@@ -29,12 +29,15 @@ export const Client = {
     return res.rows[0] || null;
   },
 
-  async create(name, clientTransaction = null) {
+  async create(name, contact = '', email = '', clientTransaction = null) {
     const db = clientTransaction || pool;
     if (isFallback()) {
       return memoryDb.createClient(name);
     }
-    const res = await db.query('INSERT INTO clients (name) VALUES ($1) RETURNING *', [name]);
+    const res = await db.query(
+      'INSERT INTO clients (name, contact, email) VALUES ($1, $2, $3) RETURNING *', 
+      [name, contact, email]
+    );
     return res.rows[0];
   }
 };

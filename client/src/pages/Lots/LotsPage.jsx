@@ -10,7 +10,7 @@ import RedispatchModal from '../../features/lots/RedispatchModal';
 import TransactionHistoryModal from '../../features/lots/TransactionHistoryModal';
 import EmailModal from '../../features/lots/EmailModal';
 
-const LotsPage = ({ selectedLotNo, selectedCompany, showToast }) => {
+const LotsPage = ({ selectedLotNo, selectedCompany, showToast, onRefreshLots }) => {
   const { user, apiFetch } = useAuth();
   
   // Data states
@@ -34,7 +34,7 @@ const LotsPage = ({ selectedLotNo, selectedCompany, showToast }) => {
     lot_no: '',
     batch_no: '',
     pixel_pitch: 'P5.9',
-    client_name: 'Xtreme Media Pvt. Ltd.',
+    client_name: 'Atomberg',
     qty_sent: '',
     qty_received: '',
     remarks: ''
@@ -150,7 +150,7 @@ const LotsPage = ({ selectedLotNo, selectedCompany, showToast }) => {
           lot_no: '',
           batch_no: '',
           pixel_pitch: 'P5.9',
-          client_name: 'Xtreme Media Pvt. Ltd.',
+          client_name: 'Atomberg',
           qty_sent: '',
           qty_received: '',
           remarks: ''
@@ -158,6 +158,7 @@ const LotsPage = ({ selectedLotNo, selectedCompany, showToast }) => {
         setManagerSignOff(false);
         fetchStock();
         fetchClients();
+        if (onRefreshLots) onRefreshLots();
       } else {
         showToast(data.error || 'Failed to inward lot', 'danger');
       }
@@ -661,7 +662,7 @@ const LotsPage = ({ selectedLotNo, selectedCompany, showToast }) => {
                   {/* Shortage Discrepancy Highlight */}
                   {shortage !== 0 && (
                     <div className="badge badge-danger" style={{ display: 'flex', width: '100%', marginBottom: 12, justifyContent: 'center', background: 'rgba(239,68,68,0.1)', color: '#fca5a5', border: '0.5px solid rgba(239,68,68,0.2)' }}>
-                      <AlertTriangle size={12} /> Discrepancy: {shortage > 0 ? `${shortage} units Shortage` : `${Math.abs(shortage)} units Excess`} (Chalaan Qty: {lot.qty_sent} vs Inward: {lot.received_qty})
+                      <AlertTriangle size={12} /> Discrepancy: {shortage > 0 ? `${shortage} units Shortage` : `${Math.abs(shortage)} units Excess`} (Challan Qty: {lot.qty_sent} vs Inward: {lot.received_qty})
                     </div>
                   )}
 

@@ -23,6 +23,7 @@ function App() {
   const [globalLotNo, setGlobalLotNo] = useState('');
   const [selectedCompany, setSelectedCompany] = useState('');
   const [notification, setNotification] = useState(null);
+  const [companies, setCompanies] = useState([]);
 
   const fetchLotsList = async () => {
     try {
@@ -36,9 +37,22 @@ function App() {
     }
   };
 
+  const fetchClientsList = async () => {
+    try {
+      const res = await apiFetch('/api/stock/clients');
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       fetchLotsList();
+      fetchClientsList();
     }
   }, [user]);
 
@@ -154,8 +168,9 @@ function App() {
                   }}
                 >
                   <option value="">-- Select Company --</option>
-                  <option value="Atomberg">Atomberg</option>
-                  <option value="Bajaj">Bajaj</option>
+                  {companies.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -206,7 +221,8 @@ function App() {
           <LotsPage 
             selectedLotNo={globalLotNo}
             selectedCompany={selectedCompany}
-            showToast={showToast} 
+            showToast={showToast}
+            onRefreshLots={fetchLotsList}
           />
         )}
         {view === 'repair' && (
@@ -222,7 +238,11 @@ function App() {
           <EngineersPage showToast={showToast} />
         )}
         {view === 'users' && user.role === 'Superadmin' && (
-          <SettingsPage showToast={showToast} />
+          <SettingsPage 
+            showToast={showToast} 
+            onRefreshCompanies={fetchClientsList}
+            onRefreshLots={fetchLotsList}
+          />
         )}
       </main>
       

@@ -1,22 +1,8 @@
 import pool, { isFallback, query } from '../config/db.js';
 import { PendingLog } from '../models/PendingLog.js';
 import { Panel } from '../models/Panel.js';
+import { RepairStep } from '../models/RepairStep.js';
 import * as memoryDb from '../services/memoryDb.js';
-
-const STEP_NAMES = [
-  "Inward",
-  "Segregation",
-  "Programming",
-  "1st Testing",
-  "Debug",
-  "Entry",
-  "Cleaning",
-  "QC After Cleaning",
-  "Marking & Coating",
-  "Final Testing",
-  "Final Entry",
-  "Packing"
-];
 
 export const getApprovals = async (req, res) => {
   try {
@@ -27,7 +13,7 @@ export const getApprovals = async (req, res) => {
         .sort((a, b) => a.id - b.id);
     } else {
       const approvalsRes = await query(`
-        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name, l.lot_no
+        SELECT pl.*, p.barcode, p.sr_no, p.side, u.name as engineer_name, tl.name as team_lead_name, l.lot_no, l.client_id
         FROM pending_logs pl
         JOIN panels p ON pl.panel_id = p.id
         JOIN lots l ON p.lot_id = l.id
@@ -39,10 +25,42 @@ export const getApprovals = async (req, res) => {
       approvals = approvalsRes.rows;
     }
 
-    const result = approvals.map(row => ({
-      ...row,
-      step_name: STEP_NAMES[row.step_no - 1]
-    }));
+    const stepsMap = {};
+    for (const row of approvals) {
+      let clientId = null;
+      if (isFallback()) {
+        const panel = memoryDb.findPanelById(row.panel_id);
+        const lot = panel ? memoryDb.findLotById(panel.lot_id) : null;
+        if (lot) clientId = lot.client_id;
+      } else {
+        clientId = row.client_id;
+      }
+
+      if (clientId && !stepsMap[clientId]) {
+        stepsMap[clientId] = await RepairStep.getAllForClient(clientId);
+      }
+    }
+    stepsMap['default'] = await RepairStep.getAllForClient(null);
+
+    const result = approvals.map(row => {
+      let clientId = null;
+      if (isFallback()) {
+        const panel = memoryDb.findPanelById(row.panel_id);
+        const lot = panel ? memoryDb.findLotById(panel.lot_id) : null;
+        if (lot) clientId = lot.client_id;
+      } else {
+        clientId = row.client_id;
+      }
+
+      const clientSteps = stepsMap[clientId] || stepsMap['default'];
+      const stepObj = clientSteps.find(s => s.step_no === row.step_no);
+      const step_name = stepObj ? stepObj.name : `Step ${row.step_no}`;
+
+      return {
+        ...row,
+        step_name
+      };
+    });
 
     res.json(result);
   } catch (err) {

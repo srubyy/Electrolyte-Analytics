@@ -1,7 +1,6 @@
 -- Normalized Seed file for Electrolyte Solutions PCB Refurbishment
 
 -- Seed Clients
-INSERT INTO clients (name, contact, email) VALUES ('Xtreme Media Pvt. Ltd.', 'John Doe', 'contact@xtrememedia.co') ON CONFLICT (name) DO NOTHING;
 INSERT INTO clients (name, contact, email) VALUES ('Atomberg', 'Jane Smith', 'info@atomberg.com') ON CONFLICT (name) DO NOTHING;
 INSERT INTO clients (name, contact, email) VALUES ('Bajaj', 'Bajaj Spares Manager', 'spares@bajaj.com') ON CONFLICT (name) DO NOTHING;
 

@@ -1,20 +1,7 @@
 import { Lot } from '../models/Lot.js';
 import { Panel } from '../models/Panel.js';
-
-const STEP_NAMES = [
-  "Inward",
-  "Segregation",
-  "Programming",
-  "1st Testing",
-  "Debug",
-  "Entry",
-  "Cleaning",
-  "QC After Cleaning",
-  "Marking & Coating",
-  "Final Testing",
-  "Final Entry",
-  "Packing"
-];
+import { Client } from '../models/Client.js';
+import { RepairStep } from '../models/RepairStep.js';
 
 export const getDashboard = async (req, res) => {
   const { lot_no, client_name } = req.query;
@@ -28,16 +15,29 @@ export const getDashboard = async (req, res) => {
     
     // If user provided a specific lot_no, find that exact lot, otherwise get all
     let lotsList;
+    let clientId = null;
+
     if (lot_no) {
       const singleLot = await Lot.findByLotNo(Number(lot_no));
       lotsList = singleLot ? [singleLot] : [];
+      if (singleLot) {
+        clientId = singleLot.client_id;
+      }
     } else {
       lotsList = await Lot.getAll();
     }
 
     if (client_name) {
       lotsList = lotsList.filter(l => l.client_name && l.client_name.toLowerCase().includes(client_name.toLowerCase()));
+      const client = await Client.findByName(client_name);
+      if (client) {
+        clientId = client.id;
+      }
     }
+
+    // Load custom steps list (falls back to global defaults)
+    const steps = await RepairStep.getAllForClient(clientId);
+    const stepsCount = steps.length;
 
     let totalLots = lotsList.length;
     let totalReceived = 0;
@@ -50,9 +50,9 @@ export const getDashboard = async (req, res) => {
     for (const lot of lotsList) {
       totalReceived += lot.received_qty;
 
-      // Count dispatched panels for this lot (current_step = 12, not scrap)
+      // Count dispatched panels for this lot (current_step = stepsCount, not scrap)
       const dispCount = await Panel.countForLot(lot.id, {
-        current_step: 12,
+        current_step: stepsCount,
         notStatus: 'Scrap'
       });
       totalDispatched += dispCount;
@@ -67,7 +67,8 @@ export const getDashboard = async (req, res) => {
 
     // 3. Pipeline step breakdown
     const stepBreakdown = [];
-    for (let i = 1; i <= 12; i++) {
+    for (const step of steps) {
+      const i = step.step_no;
       let countVal = 0;
       if (lot_no) {
         countVal = await Panel.countAtStep(i, lot_no);
@@ -81,23 +82,23 @@ export const getDashboard = async (req, res) => {
 
       stepBreakdown.push({
         step_no: i,
-        step_name: STEP_NAMES[i - 1],
+        step_name: step.name,
         count: countVal
       });
 
       // Bottleneck alert if > 10 panels are clogging a step
-      if (i !== 12 && countVal > 10) {
+      if (i !== stepsCount && countVal > 10) {
         bottleneckAlerts.push({
           type: "bottleneck",
           step_no: i,
-          step_name: STEP_NAMES[i - 1],
+          step_name: step.name,
           count: countVal,
-          message: `Bottleneck detected at Step ${i} (${STEP_NAMES[i - 1]}): ${countVal} panels pending.`
+          message: `Bottleneck detected at Step ${i} (${step.name}): ${countVal} panels pending.`
         });
       }
     }
 
-    totalPending = stepBreakdown.reduce((sum, item) => sum + (item.step_no !== 12 ? item.count : 0), 0);
+    totalPending = stepBreakdown.reduce((sum, item) => sum + (item.step_no !== stepsCount ? item.count : 0), 0);
 
     // 4. Client discrepancy alerts
     for (const lot of lotsList) {

@@ -1,5 +1,6 @@
 import pool, { isFallback, query } from '../config/db.js';
 import { Lot } from '../models/Lot.js';
+import { RepairStep } from '../models/RepairStep.js';
 import * as memoryDb from '../services/memoryDb.js';
 
 // Helper to get step-wise aggregates (committed + pending logs)
@@ -367,8 +368,22 @@ export const tlApproveLog = async (req, res) => {
       }
     }
 
-    // Adjust lot stats if Step 11 (Final Entry) is committed
-    if (pLog.step_no === 11) {
+    // Fetch lot to get client_id
+    let clientId = null;
+    if (isFallback()) {
+      const lot = memoryDb.findLotById(pLog.lot_id);
+      if (lot) clientId = lot.client_id;
+    } else {
+      const lotRes = await txClient.query('SELECT client_id FROM lots WHERE id = $1', [pLog.lot_id]);
+      if (lotRes.rows[0]) clientId = lotRes.rows[0].client_id;
+    }
+
+    const steps = await RepairStep.getAllForClient(clientId);
+    const stepObj = steps.find(s => s.step_no === pLog.step_no);
+    const stepName = stepObj ? stepObj.name : '';
+
+    // Adjust lot stats if Step is Final Entry
+    if (stepName === 'Final Entry') {
       const finalCount = parseInt(pLog.step_data.entry_count || 0);
       
       if (isFallback()) {
