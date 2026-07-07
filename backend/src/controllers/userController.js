@@ -35,7 +35,7 @@ export const createUser = async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
     const attendance = parseFloat(attendance_rate || 95.0);
-    const avatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`;
+    const avatar = null;
 
     const newUser = await User.create({
       name,

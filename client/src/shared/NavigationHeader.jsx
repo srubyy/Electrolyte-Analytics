@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Package, Wrench, ShieldCheck, Trophy, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Wrench, ShieldCheck, Trophy, Users, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const NavigationHeader = ({ view, setView, showToast }) => {
@@ -57,11 +57,17 @@ const NavigationHeader = ({ view, setView, showToast }) => {
       {/* Profile Actions Widget */}
       <div className="header-profile-widget">
         <div className="profile-info">
-          <img 
-            src={user.avatar || "https://api.dicebear.com/7.x/adventurer/svg?seed=Operator"} 
-            alt="Operator avatar" 
-            className="profile-avatar"
-          />
+          {user.avatar ? (
+            <img 
+              src={user.avatar} 
+              alt="Operator avatar" 
+              className="profile-avatar"
+            />
+          ) : (
+            <div className="profile-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#e2e8f0', color: '#64748b' }}>
+              <User size={24} />
+            </div>
+          )}
           <div className="profile-details desktop-only-flex">
             <span className="profile-name">{user.name}</span>
             <span className="profile-role">{user.role}</span>

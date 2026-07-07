@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, AlertCircle } from 'lucide-react';
+import { Lock, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const AuthPage = ({ showToast }) => {
@@ -7,6 +7,7 @@ const AuthPage = ({ showToast }) => {
   
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -61,13 +62,36 @@ const AuthPage = ({ showToast }) => {
 
             <div className="form-group" style={{ marginBottom: 20 }}>
               <label>Password</label>
-              <input 
-                type="password" 
-                required 
-                placeholder="••••••••••••"
-                value={loginPassword}
-                onChange={e => setLoginPassword(e.target.value)}
-              />
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required 
+                  placeholder="••••••••••••"
+                  value={loginPassword}
+                  onChange={e => setLoginPassword(e.target.value)}
+                  style={{ paddingRight: '40px', width: '100%', boxSizing: 'border-box' }}
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 0
+                  }}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="btn" disabled={loginLoading}>
@@ -81,7 +105,11 @@ const AuthPage = ({ showToast }) => {
           <div style={{ fontWeight: 800, color: 'var(--color-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}><Lock size={10} /> Operator Cheat Sheet:</div>
           - Team Lead Account: <span style={{ color: 'var(--text-main)' }}>rahul.gupta@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
           - Super Admin Account: <span style={{ color: 'var(--text-main)' }}>superadmin@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
-          - Engineer Account: <span style={{ color: 'var(--text-main)' }}>mayuri.s@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span>
+          - Engineer Account 1: <span style={{ color: 'var(--text-main)' }}>mayuri.s@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
+          - Engineer Account 2: <span style={{ color: 'var(--text-main)' }}>akash.p@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
+          - Engineer Account 3: <span style={{ color: 'var(--text-main)' }}>nilam.dhanavde@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
+          - Engineer Account 4: <span style={{ color: 'var(--text-main)' }}>usha.m@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span><br/>
+          - Engineer Account 5: <span style={{ color: 'var(--text-main)' }}>swarupa.vishwakarma@electrolytesoln.com</span> / <span style={{ color: 'var(--text-main)' }}>Electrolyte2026!</span>
         </div>
       </div>
     </div>
