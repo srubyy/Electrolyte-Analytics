@@ -8,6 +8,6 @@ router.get('/panels', authenticateJWT, getPanels);
 router.get('/panels/search', authenticateJWT, searchPanel);
 router.post('/repair/assign', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), assignPanel);
 router.post('/repair/next', authenticateJWT, progressRepair);
-router.post('/panels/import', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead']), importPanels);
+router.post('/panels/import', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead', 'Employee']), importPanels);
 
 export default router;
