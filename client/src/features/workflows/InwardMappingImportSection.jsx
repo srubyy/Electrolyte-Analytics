@@ -142,13 +142,51 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
           return;
         }
 
-        const headers = json[0].map(h => String(h || '').trim().toLowerCase());
-        const serialIdx = headers.findIndex(h => h.includes('sr no') || h.includes('serial') || h.includes('pcb sr'));
-        const boxIdx = headers.findIndex(h => h.includes('box'));
-        const barcodeIdx = headers.findIndex(h => h.includes('barcode'));
+        // Robust Header detection: scan first 20 rows to find header row containing keywords
+        let headerRowIdx = -1;
+        let headers = [];
+        for (let r = 0; r < Math.min(json.length, 20); r++) {
+          const row = json[r];
+          if (!row) continue;
+          const mappedRow = row.map(h => String(h || '').trim().toLowerCase());
+          const hasSerial = mappedRow.some(h => 
+            h.includes('sr no') || h.includes('serial') || h.includes('barcode') || h.includes('pcb sr')
+          );
+          if (hasSerial) {
+            headerRowIdx = r;
+            headers = mappedRow;
+            break;
+          }
+        }
+
+        // Fallback to row 0 if no headers detected
+        if (headerRowIdx === -1) {
+          headerRowIdx = 0;
+          headers = (json[0] || []).map(h => String(h || '').trim().toLowerCase());
+        }
+
+        let serialIdx = headers.findIndex(h => h.includes('sr no') || h.includes('serial') || h.includes('pcb sr'));
+        let boxIdx = headers.findIndex(h => h.includes('box'));
+        let barcodeIdx = headers.findIndex(h => h.includes('barcode'));
+
+        // Smart column fallback: check data rows for serial patterns (AT... or length 16/21/22)
+        if (serialIdx === -1 && barcodeIdx === -1) {
+          for (let r = headerRowIdx + 1; r < Math.min(json.length, headerRowIdx + 10); r++) {
+            const row = json[r];
+            if (!row) continue;
+            for (let c = 0; c < row.length; c++) {
+              const val = String(row[c] || '').trim();
+              if (val.startsWith('AT') || val.length === 16 || val.length === 21 || val.length === 22) {
+                serialIdx = c;
+                break;
+              }
+            }
+            if (serialIdx !== -1) break;
+          }
+        }
 
         const parsed = [];
-        for (let r = 1; r < json.length; r++) {
+        for (let r = headerRowIdx + 1; r < json.length; r++) {
           const row = json[r];
           if (!row || row.length === 0) continue;
 
@@ -180,7 +218,7 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         showToast(`Successfully parsed ${parsed.length} rows from Excel!`, 'success');
       } catch (err) {
         console.error(err);
-        showToast('Error reading Excel file.', 'danger');
+        showToast(`Error reading Excel: ${err.message || err}`, 'danger');
       }
     };
     reader.readAsArrayBuffer(file);
