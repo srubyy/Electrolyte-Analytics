@@ -3,6 +3,7 @@ import { Cpu, Wrench, ArrowRight, Check, CheckCheck, X, ShieldAlert, CheckCircle
 
 import StationChecklist from '../../features/workflows/StationChecklist';import PresetRemarksSelect from '../../features/workflows/PresetRemarksSelect';
 import PipelineIndicator, { STEP_NAMES } from '../../features/stages/PipelineIndicator';
+import InwardMappingImportSection from '../../features/workflows/InwardMappingImportSection';
 
 const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast }) => {
   const { user, apiFetch } = useAuth();
@@ -21,6 +22,8 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
   const [lotProductionStats, setLotProductionStats] = useState(null);
   const [rejectionLogInputId, setRejectionLogInputId] = useState(null);
   const [rejectionLogText, setRejectionLogText] = useState('');
+  const [inwardTab, setInwardTab] = useState('summary');
+
 
   const [steps, setSteps] = useState([
     { step_no: 1, name: "Inward" },
@@ -516,31 +519,85 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                     <option value="GV2 Regulator">GV2 Regulator</option>
                   </select>
                 </div>
-                {activeStepName === 'Inward' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div className="form-group">
-                      <label>Challan Quantity</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 678"
-                        value={stepInputs.expected_qty || ''}
-                        onChange={e => setStepInputs({ ...stepInputs, expected_qty: parseInt(e.target.value) || '' })}
+                {selectedProductionStep === 1 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div style={{ display: 'flex', gap: 8, background: 'var(--input-bg)', padding: 4, borderRadius: 8, border: '1px solid var(--card-border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => setInwardTab('summary')}
+                        style={{
+                          flex: 1,
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          borderRadius: 6,
+                          background: inwardTab === 'summary' ? 'var(--color-primary)' : 'transparent',
+                          color: inwardTab === 'summary' ? '#000' : 'var(--text-muted)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        Lot Inward Summary
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInwardTab('mapping')}
+                        style={{
+                          flex: 1,
+                          padding: '6px 12px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          borderRadius: 6,
+                          background: inwardTab === 'mapping' ? 'var(--color-primary)' : 'transparent',
+                          color: inwardTab === 'mapping' ? '#000' : 'var(--text-muted)',
+                          border: 'none',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        PCB Mapping & Excel Import
+                      </button>
+                    </div>
+
+                    {inwardTab === 'summary' ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div className="form-group">
+                          <label>Challan Quantity</label>
+                          <input
+                            type="number"
+                            required
+                            placeholder="e.g. 678"
+                            value={stepInputs.expected_qty || ''}
+                            onChange={e => setStepInputs({ ...stepInputs, expected_qty: parseInt(e.target.value) || '' })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Quantity Received</label>
+                          <input
+                            type="number"
+                            required
+                            placeholder="e.g. 658"
+                            value={stepInputs.qty_received || ''}
+                            onChange={e => setStepInputs({ ...stepInputs, qty_received: parseInt(e.target.value) || '' })}
+                          />
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                          * Shortage will be auto-computed: <strong>{(parseInt(stepInputs.expected_qty || 0) - parseInt(stepInputs.qty_received || 0))} units shortage</strong>.
+                        </div>
+                      </div>
+                    ) : (
+                      <InwardMappingImportSection
+                        lotId={productionLotId}
+                        apiFetch={apiFetch}
+                        showToast={showToast}
+                        onSuccess={() => {
+                          fetchPendingProductionLogs(selectedProductionStep);
+                          fetchProductionLogs(productionLotId, selectedProductionStep);
+                          fetchLotProductionStats(productionLotId);
+                        }}
                       />
-                    </div>
-                    <div className="form-group">
-                      <label>Quantity Received</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="e.g. 658"
-                        value={stepInputs.qty_received || ''}
-                        onChange={e => setStepInputs({ ...stepInputs, qty_received: parseInt(e.target.value) || '' })}
-                      />
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      * Shortage will be auto-computed: <strong>{(parseInt(stepInputs.expected_qty || 0) - parseInt(stepInputs.qty_received || 0))} units shortage</strong>.
-                    </div>
+                    )}
                   </div>
                 )}
 
@@ -866,9 +923,11 @@ const WorkflowsPage = ({ selectedLotNo, selectedCompany, onChangeLot, showToast 
                   </div>
                 )}
 
-                <button type="submit" className="btn" style={{ marginTop: 16 }}>
-                  Submit Step Production Log <ArrowRight size={14} />
-                </button>
+                {!(selectedProductionStep === 1 && inwardTab === 'mapping') && (
+                  <button type="submit" className="btn" style={{ marginTop: 16 }}>
+                    Submit Step Production Log <ArrowRight size={14} />
+                  </button>
+                )}
               </form>
 
               {/* My Pending & Recent Submissions */}

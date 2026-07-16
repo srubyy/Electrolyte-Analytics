@@ -460,3 +460,169 @@ export const progressRepair = async (req, res) => {
     res.status(500).json({ error: "Failed to progress panel in repair." });
   }
 };
+
+export const importPanels = async (req, res) => {
+  const { lot_id, panels } = req.body;
+  if (!lot_id || !Array.isArray(panels) || panels.length === 0) {
+    return res.status(400).json({ error: "lot_id and non-empty panels list are required." });
+  }
+
+  const useTx = !isFallback();
+  const txClient = useTx ? await pool.connect() : null;
+
+  try {
+    if (useTx) await txClient.query('BEGIN');
+
+    // Verify lot exists
+    const lot = await Lot.findById(lot_id, txClient);
+    if (!lot) {
+      if (useTx && txClient) {
+        await txClient.query('ROLLBACK');
+        txClient.release();
+      }
+      return res.status(404).json({ error: `Selected lot does not exist.` });
+    }
+
+    const importedPanels = [];
+
+    // Helper function for year calculation
+    const extractMfgYear = (serial) => {
+      if (!serial) return null;
+      const s = String(serial).trim();
+      const len = s.length;
+      if (len === 16 || len === 17) {
+        const yr = parseInt(s.substring(3, 5));
+        return isNaN(yr) ? null : yr + 2000;
+      }
+      if (s.startsWith('AGV')) {
+        const cIndex = s.indexOf('C');
+        if (cIndex !== -1 && cIndex + 2 < len) {
+          const yr = parseInt(s.substring(cIndex + 1, cIndex + 3));
+          return isNaN(yr) ? null : yr + 2000;
+        }
+      }
+      if (s.startsWith('EA') && len === 22) {
+        const yr = parseInt(s.substring(15, 17));
+        return isNaN(yr) ? null : yr + 2000;
+      }
+      return null;
+    };
+
+    // Get current maximum serial number count inside this lot to auto-increment sr_no
+    let currentMaxSr = 0;
+    if (isFallback()) {
+      const lotPanels = memoryDb.tables.panels.filter(p => p.lot_id === lot.id);
+      currentMaxSr = lotPanels.reduce((max, p) => Math.max(max, p.sr_no || 0), 0);
+    } else {
+      const srRes = await txClient.query('SELECT COALESCE(MAX(sr_no), 0) as max_sr FROM panels WHERE lot_id = $1', [lot.id]);
+      currentMaxSr = parseInt(srRes.rows[0].max_sr || 0);
+    }
+
+    for (let i = 0; i < panels.length; i++) {
+      const p = panels[i];
+      const dummy = p.dummy_sr_no ? String(p.dummy_sr_no).trim() : null;
+      const real = p.real_sr_no ? String(p.real_sr_no).trim() : null;
+      const box = p.box_no ? String(p.box_no).trim() : null;
+
+      if (!dummy && !real) {
+        throw new Error(`Row ${i + 1} does not contain a dummy or real serial number.`);
+      }
+
+      // Check year validation
+      const mfgYear = extractMfgYear(real);
+      let status = 'Repairable';
+      let scrapReason = null;
+      if (mfgYear && mfgYear <= 2022) {
+        status = 'Scrap';
+        scrapReason = `Manufacturing Year (${mfgYear}) <= 2022`;
+      }
+
+      const srNo = currentMaxSr + i + 1;
+      
+      // Auto-generate a valid unique barcode
+      const pitchStr = lot.pixel_pitch.replace('.', '');
+      // Ensure barcode fits standard
+      const side = p.side || 'Left';
+      const sideChar = side[0];
+      const srStr = String(srNo).padStart(4, '0');
+      // If real_sr_no is present, we can use it as the unique barcode, or fallback to auto-generated barcode
+      const barcode = real || `ESRP2${pitchStr}${lot.lot_no}E26${lot.batch_no}${sideChar}${srStr}`;
+
+      let newPanel;
+      if (isFallback()) {
+        newPanel = {
+          id: memoryDb.tables.panels.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1,
+          lot_id: lot.id,
+          sr_no: srNo,
+          side,
+          barcode,
+          status,
+          scrap_reason: scrapReason,
+          current_step: 1,
+          assigned_engineer_id: null,
+          dummy_sr_no: dummy,
+          real_sr_no: real,
+          mfg_year: mfgYear,
+          box_no: box,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        memoryDb.tables.panels.push(newPanel);
+
+        // Log panel activity
+        memoryDb.tables.panel_logs.push({
+          id: memoryDb.tables.panel_logs.reduce((max, l) => Math.max(max, l.id || 0), 0) + 1,
+          panel_id: newPanel.id,
+          step_id: 1,
+          engineer_id: null,
+          status: status === 'Scrap' ? 'Scrap' : 'OK',
+          remark: scrapReason || 'Inwarded via Excel Import'
+        });
+      } else {
+        // Insert panel
+        const insRes = await txClient.query(`
+          INSERT INTO panels (lot_id, sr_no, side, barcode, status, scrap_reason, current_step, dummy_sr_no, real_sr_no, mfg_year, box_no)
+          VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10)
+          RETURNING *
+        `, [lot.id, srNo, side, barcode, status, scrapReason, dummy, real, mfgYear, box]);
+        newPanel = insRes.rows[0];
+
+        // Fetch step_id for step 1 of this client
+        const stepRes = await txClient.query(
+          'SELECT id FROM repair_steps WHERE (client_id = $1 OR client_id IS NULL) AND step_no = 1 ORDER BY client_id DESC LIMIT 1',
+          [lot.client_id]
+        );
+        const stepId = stepRes.rows[0]?.id;
+
+        // Log activity
+        await txClient.query(`
+          INSERT INTO panel_logs (panel_id, step_id, engineer_id, status, remark)
+          VALUES ($1, $2, null, $3, $4)
+        `, [newPanel.id, stepId, status === 'Scrap' ? 'Scrap' : 'OK', scrapReason || 'Inwarded via Excel Import']);
+      }
+
+      importedPanels.push(newPanel);
+    }
+
+    if (useTx) {
+      await txClient.query('COMMIT');
+      txClient.release();
+    }
+
+    res.status(201).json({
+      success: true,
+      count: importedPanels.length,
+      panels: importedPanels,
+      message: `Successfully imported ${importedPanels.length} panels into Lot ${lot.lot_no}.`
+    });
+
+  } catch (err) {
+    if (useTx && txClient) {
+      await txClient.query('ROLLBACK');
+      txClient.release();
+    }
+    console.error('Excel Import panels error:', err);
+    res.status(500).json({ error: err.message || "Failed to import panels." });
+  }
+};
+
