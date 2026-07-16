@@ -548,6 +548,8 @@ export const importPanels = async (req, res) => {
       // If real_sr_no is present, we can use it as the unique barcode, or fallback to auto-generated barcode
       const barcode = real || `ESRP2${pitchStr}${lot.lot_no}E26${lot.batch_no}${sideChar}${srStr}`;
 
+      const excelData = p.excel_data ? JSON.stringify(p.excel_data) : null;
+
       let newPanel;
       if (isFallback()) {
         newPanel = {
@@ -564,6 +566,7 @@ export const importPanels = async (req, res) => {
           real_sr_no: real,
           mfg_year: mfgYear,
           box_no: box,
+          excel_data: p.excel_data || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
@@ -581,10 +584,10 @@ export const importPanels = async (req, res) => {
       } else {
         // Insert panel
         const insRes = await txClient.query(`
-          INSERT INTO panels (lot_id, sr_no, side, barcode, status, scrap_reason, current_step, dummy_sr_no, real_sr_no, mfg_year, box_no)
-          VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10)
+          INSERT INTO panels (lot_id, sr_no, side, barcode, status, scrap_reason, current_step, dummy_sr_no, real_sr_no, mfg_year, box_no, excel_data)
+          VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11)
           RETURNING *
-        `, [lot.id, srNo, side, barcode, status, scrapReason, dummy, real, mfgYear, box]);
+        `, [lot.id, srNo, side, barcode, status, scrapReason, dummy, real, mfgYear, box, excelData]);
         newPanel = insRes.rows[0];
 
         // Fetch step_id for step 1 of this client
