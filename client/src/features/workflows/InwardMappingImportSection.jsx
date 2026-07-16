@@ -148,9 +148,9 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         for (let r = 0; r < Math.min(json.length, 20); r++) {
           const row = json[r];
           if (!row) continue;
-          const mappedRow = row.map(h => String(h || '').trim().toLowerCase());
+          const mappedRow = Array.from(row).map(h => String(h || '').trim().toLowerCase());
           const hasSerial = mappedRow.some(h => 
-            h.includes('sr no') || h.includes('serial') || h.includes('barcode') || h.includes('pcb sr')
+            h && (h.includes('sr no') || h.includes('serial') || h.includes('barcode') || h.includes('pcb sr'))
           );
           if (hasSerial) {
             headerRowIdx = r;
@@ -162,20 +162,21 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         // Fallback to row 0 if no headers detected
         if (headerRowIdx === -1) {
           headerRowIdx = 0;
-          headers = (json[0] || []).map(h => String(h || '').trim().toLowerCase());
+          headers = Array.from(json[0] || []).map(h => String(h || '').trim().toLowerCase());
         }
 
-        let serialIdx = headers.findIndex(h => h.includes('sr no') || h.includes('serial') || h.includes('pcb sr'));
-        let boxIdx = headers.findIndex(h => h.includes('box'));
-        let barcodeIdx = headers.findIndex(h => h.includes('barcode'));
+        let serialIdx = headers.findIndex(h => h && (h.includes('sr no') || h.includes('serial') || h.includes('pcb sr')));
+        let boxIdx = headers.findIndex(h => h && h.includes('box'));
+        let barcodeIdx = headers.findIndex(h => h && h.includes('barcode'));
 
         // Smart column fallback: check data rows for serial patterns (AT... or length 16/21/22)
         if (serialIdx === -1 && barcodeIdx === -1) {
           for (let r = headerRowIdx + 1; r < Math.min(json.length, headerRowIdx + 10); r++) {
             const row = json[r];
             if (!row) continue;
-            for (let c = 0; c < row.length; c++) {
-              const val = String(row[c] || '').trim();
+            const cleanRow = Array.from(row);
+            for (let c = 0; c < cleanRow.length; c++) {
+              const val = String(cleanRow[c] || '').trim();
               if (val.startsWith('AT') || val.length === 16 || val.length === 21 || val.length === 22) {
                 serialIdx = c;
                 break;
