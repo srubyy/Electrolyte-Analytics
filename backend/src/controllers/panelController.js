@@ -790,7 +790,7 @@ export const clearLotPanels = async (req, res) => {
     if (isFallback()) {
       memoryDb.tables.panels = memoryDb.tables.panels.filter(p => p.lot_id !== parseInt(lot_id));
     } else {
-      await pool.query('DELETE FROM panels WHERE lot_id = $1', [lot_id]);
+      await pool.query('DELETE FROM panels WHERE lot_id = $1', [parseInt(lot_id, 10)]);
     }
     res.json({ success: true, message: "Cleared all panels for this lot." });
   } catch (err) {
