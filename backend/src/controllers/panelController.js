@@ -4,6 +4,9 @@ import { Lot } from '../models/Lot.js';
 import { PendingLog } from '../models/PendingLog.js';
 import { RepairStep } from '../models/RepairStep.js';
 import * as memoryDb from '../services/memoryDb.js';
+import { exec } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 const extractMfgYear = (serial) => {
   if (!serial) return null;
@@ -796,6 +799,297 @@ export const clearLotPanels = async (req, res) => {
   } catch (err) {
     console.error('Clear panels error:', err);
     res.status(500).json({ error: "Failed to clear panels." });
+  }
+};
+
+const findColumnIndices = (sheetRows) => {
+  let dummyColIdx = -1;
+  let barcodeColIdx = -1;
+  let mfgYearColIdx = -1;
+
+  for (let r = 0; r < Math.min(sheetRows.length, 20); r++) {
+    const row = sheetRows[r];
+    if (!row) continue;
+    for (let c = 0; c < row.length; c++) {
+      const val = String(row[c] || '').trim().toLowerCase();
+      if (dummyColIdx === -1 && (val === 'pcb sr no' || val === 'dummy sr no' || val.includes('pcb sr') || val === 'sr no')) {
+        dummyColIdx = c;
+      }
+      if (barcodeColIdx === -1 && (val === 'barcode' || val === 'actual barcode' || val === 'real serial')) {
+        barcodeColIdx = c;
+      }
+      if (mfgYearColIdx === -1 && (val === 'mfg year' || val === 'mfg_year' || val === 'year')) {
+        mfgYearColIdx = c;
+      }
+    }
+  }
+  return { dummyColIdx, barcodeColIdx, mfgYearColIdx };
+};
+
+const syncExcelPanels = async (lotId, sheets) => {
+  let targetSheetName = null;
+  let maxRows = 0;
+  
+  for (const [sheetName, rows] of Object.entries(sheets)) {
+    if (rows.length > maxRows) {
+      maxRows = rows.length;
+    }
+    const { dummyColIdx, barcodeColIdx } = findColumnIndices(rows);
+    if (dummyColIdx !== -1 || barcodeColIdx !== -1) {
+      targetSheetName = sheetName;
+      break;
+    }
+  }
+  
+  if (!targetSheetName) {
+    for (const [sheetName, rows] of Object.entries(sheets)) {
+      if (rows.length === maxRows) {
+        targetSheetName = sheetName;
+        break;
+      }
+    }
+  }
+
+  if (!targetSheetName) return;
+
+  const rows = sheets[targetSheetName];
+  const { dummyColIdx, barcodeColIdx } = findColumnIndices(rows);
+
+  if (isFallback()) {
+    memoryDb.tables.panels = memoryDb.tables.panels.filter(p => p.lot_id !== lotId);
+  } else {
+    await pool.query('DELETE FROM panels WHERE lot_id = $1', [lotId]);
+  }
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    const dummy = dummyColIdx !== -1 ? String(row[dummyColIdx] || '').trim() : '';
+    const rawBarcode = barcodeColIdx !== -1 ? String(row[barcodeColIdx] || '').trim() : '';
+
+    if (r < 5) {
+      const isHeader = [dummy, rawBarcode].some(val => {
+        const l = val.toLowerCase();
+        return l.includes('pcb sr') || l.includes('barcode') || l.includes('serial') || l.includes('sr no');
+      });
+      if (isHeader) continue;
+    }
+
+    if (!dummy && !rawBarcode) continue;
+
+    const hasRealBarcode = rawBarcode && rawBarcode !== '-';
+    const mfgYear = hasRealBarcode ? extractMfgYear(rawBarcode) : null;
+    let status = 'Repairable';
+    let scrapReason = null;
+    if (mfgYear && mfgYear <= 2022) {
+      status = 'Scrap';
+      scrapReason = `Manufacturing Year (${mfgYear}) <= 2022`;
+    }
+
+    const excelData = {};
+    row.forEach((cell, cIdx) => {
+      excelData[`Col_${cIdx}`] = cell;
+    });
+
+    if (isFallback()) {
+      memoryDb.tables.panels.push({
+        id: Date.now() + Math.random(),
+        lot_id: lotId,
+        sr_no: r + 1,
+        dummy_sr_no: dummy,
+        real_sr_no: hasRealBarcode ? rawBarcode : '',
+        barcode: hasRealBarcode ? rawBarcode : '',
+        box_no: 'Box 1',
+        mfg_year: mfgYear,
+        status,
+        scrap_reason: scrapReason,
+        excel_data: excelData,
+        current_step: 1
+      });
+    } else {
+      await pool.query(`
+        INSERT INTO panels (lot_id, sr_no, dummy_sr_no, real_sr_no, barcode, box_no, mfg_year, status, scrap_reason, excel_data, current_step)
+        VALUES ($1, $2, $3, $4, $5, 'Box 1', $6, $7, $8, $9, 1)
+      `, [lotId, r + 1, dummy, hasRealBarcode ? rawBarcode : '', hasRealBarcode ? rawBarcode : '', mfgYear, status, scrapReason, JSON.stringify(excelData)]);
+    }
+  }
+};
+
+export const uploadExcel = async (req, res) => {
+  const { id } = req.params;
+  const lotId = parseInt(id, 10);
+  if (isNaN(lotId)) {
+    return res.status(400).json({ error: "Invalid lot ID." });
+  }
+
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+
+  const tempFilePath = path.join(uploadsDir, `lot_${lotId}_temp.xlsx`);
+  const finalJsonPath = path.join(uploadsDir, `lot_${lotId}_raw.json`);
+
+  const fileStream = fs.createWriteStream(tempFilePath);
+  req.pipe(fileStream);
+
+  fileStream.on('finish', () => {
+    const pyPath = path.join(process.cwd(), '.venv', 'bin', 'python');
+    const scriptPath = path.join(process.cwd(), 'parse_excel.py');
+    
+    exec(`"${pyPath}" "${scriptPath}" "${tempFilePath}"`, async (err, stdout, stderr) => {
+      try { fs.unlinkSync(tempFilePath); } catch (e) {}
+
+      if (err) {
+        console.error('Python execution error:', err, stderr);
+        return res.status(500).json({ error: "Failed to parse Excel file using Pandas." });
+      }
+
+      try {
+        const parsed = JSON.parse(stdout);
+        if (!parsed.success) {
+          return res.status(400).json({ error: parsed.error || "Failed parsing sheet." });
+        }
+
+        fs.writeFileSync(finalJsonPath, JSON.stringify(parsed.sheets), 'utf8');
+
+        if (isFallback()) {
+          memoryDb.tables.cell_edits = memoryDb.tables.cell_edits.filter(e => e.lot_id !== lotId);
+        } else {
+          await pool.query('DELETE FROM cell_edits WHERE lot_id = $1', [lotId]);
+        }
+
+        await syncExcelPanels(lotId, parsed.sheets);
+
+        res.json({ success: true, message: "Imported Excel file successfully." });
+      } catch (ex) {
+        console.error('Upload handler error:', ex);
+        res.status(500).json({ error: ex.message || "Internal parsing error." });
+      }
+    });
+  });
+
+  fileStream.on('error', (err) => {
+    console.error('File stream error:', err);
+    res.status(500).json({ error: "Failed writing uploaded file." });
+  });
+};
+
+export const getExcelData = async (req, res) => {
+  const { id } = req.params;
+  const lotId = parseInt(id, 10);
+  if (isNaN(lotId)) {
+    return res.status(400).json({ error: "Invalid lot ID." });
+  }
+
+  const finalJsonPath = path.join(process.cwd(), 'uploads', `lot_${lotId}_raw.json`);
+  let sheets = {};
+  if (fs.existsSync(finalJsonPath)) {
+    try {
+      sheets = JSON.parse(fs.readFileSync(finalJsonPath, 'utf8'));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  let edits = [];
+  try {
+    if (isFallback()) {
+      edits = memoryDb.tables.cell_edits.filter(e => e.lot_id === lotId);
+    } else {
+      const dbRes = await pool.query('SELECT * FROM cell_edits WHERE lot_id = $1', [lotId]);
+      edits = dbRes.rows;
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  res.json({ sheets, edits });
+};
+
+export const saveCellEdit = async (req, res) => {
+  const { id } = req.params;
+  const lotId = parseInt(id, 10);
+  const { sheet_name, row_idx, col_idx, value } = req.body;
+
+  if (isNaN(lotId) || !sheet_name || row_idx === undefined || col_idx === undefined) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  try {
+    if (isFallback()) {
+      const existingIdx = memoryDb.tables.cell_edits.findIndex(e => 
+        e.lot_id === lotId && e.sheet_name === sheet_name && e.row_idx === row_idx && String(e.col_idx) === String(col_idx)
+      );
+      const editObj = { lot_id: lotId, sheet_name, row_idx, col_idx: String(col_idx), value };
+      if (existingIdx !== -1) {
+        memoryDb.tables.cell_edits[existingIdx] = editObj;
+      } else {
+        memoryDb.tables.cell_edits.push(editObj);
+      }
+    } else {
+      await pool.query(`
+        INSERT INTO cell_edits (lot_id, sheet_name, row_idx, col_idx, value)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (lot_id, sheet_name, row_idx, col_idx)
+        DO UPDATE SET value = EXCLUDED.value
+      `, [lotId, sheet_name, row_idx, String(col_idx), value]);
+    }
+
+    const finalJsonPath = path.join(process.cwd(), 'uploads', `lot_${lotId}_raw.json`);
+    if (fs.existsSync(finalJsonPath)) {
+      const sheets = JSON.parse(fs.readFileSync(finalJsonPath, 'utf8'));
+      const rows = sheets[sheet_name] || [];
+      const { dummyColIdx, barcodeColIdx } = findColumnIndices(rows);
+      const srNo = parseInt(row_idx, 10) + 1;
+
+      let updateField = null;
+      let updateValue = value;
+
+      if (String(col_idx) === String(dummyColIdx)) {
+        updateField = 'dummy_sr_no';
+      } else if (String(col_idx) === String(barcodeColIdx) || String(col_idx) === 'actual_serial_no') {
+        updateField = 'real_sr_no';
+      } else if (String(col_idx) === 'box_no') {
+        updateField = 'box_no';
+      }
+
+      if (updateField) {
+        const fields = { [updateField]: updateValue };
+        if (updateField === 'real_sr_no') {
+          fields.barcode = updateValue;
+          const mfgYear = extractMfgYear(updateValue);
+          fields.mfg_year = mfgYear;
+          if (mfgYear && mfgYear <= 2022) {
+            fields.status = 'Scrap';
+            fields.scrap_reason = `Manufacturing Year (${mfgYear}) <= 2022`;
+          } else {
+            fields.status = 'Repairable';
+            fields.scrap_reason = null;
+          }
+        }
+
+        if (isFallback()) {
+          const p = memoryDb.tables.panels.find(p => p.lot_id === lotId && p.sr_no === srNo);
+          if (p) {
+            Object.assign(p, fields);
+          }
+        } else {
+          const check = await pool.query('SELECT id FROM panels WHERE lot_id = $1 AND sr_no = $2', [lotId, srNo]);
+          if (check.rows.length > 0) {
+            const pId = check.rows[0].id;
+            const keys = Object.keys(fields);
+            const vals = Object.values(fields);
+            const setClause = keys.map((k, idx) => `${k} = $${idx + 1}`).join(', ');
+            await pool.query(`UPDATE panels SET ${setClause} WHERE id = $${keys.length + 1}`, [...vals, pId]);
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, message: "Cell edit saved successfully." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to save cell edit." });
   }
 };
 

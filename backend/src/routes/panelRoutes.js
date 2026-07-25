@@ -1,5 +1,8 @@
 import express from 'express';
-import { getPanels, searchPanel, assignPanel, progressRepair, importPanels, patchPanel, deletePanel, createPanel, clearLotPanels } from '../controllers/panelController.js';
+import { 
+  getPanels, searchPanel, assignPanel, progressRepair, importPanels, patchPanel, deletePanel, createPanel, clearLotPanels,
+  uploadExcel, getExcelData, saveCellEdit
+} from '../controllers/panelController.js';
 import { authenticateJWT, authorize } from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -13,5 +16,10 @@ router.post('/panels', authenticateJWT, authorize(['Superadmin', 'Manager', 'Tea
 router.patch('/panels/:id', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead', 'Employee']), patchPanel);
 router.delete('/panels/clear', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead', 'Employee']), clearLotPanels);
 router.delete('/panels/:id', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead', 'Employee']), deletePanel);
+
+// Excel raw sheet exact import endpoints
+router.post('/lots/:id/upload-excel', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead', 'Employee']), uploadExcel);
+router.get('/lots/:id/excel-data', authenticateJWT, getExcelData);
+router.post('/lots/:id/cell-edit', authenticateJWT, authorize(['Superadmin', 'Manager', 'Team Lead', 'Employee']), saveCellEdit);
 
 export default router;
