@@ -934,7 +934,10 @@ export const uploadExcel = async (req, res) => {
 
   fileStream.on('finish', () => {
     const pyPath = path.join(process.cwd(), '.venv', 'bin', 'python');
-    const scriptPath = path.join(process.cwd(), 'parse_excel.py');
+    let scriptPath = path.join(process.cwd(), 'parse_excel.py');
+    if (!fs.existsSync(scriptPath)) {
+      scriptPath = path.join(process.cwd(), 'backend', 'parse_excel.py');
+    }
     
     exec(`"${pyPath}" "${scriptPath}" "${tempFilePath}"`, async (err, stdout, stderr) => {
       try { fs.unlinkSync(tempFilePath); } catch (e) {}
