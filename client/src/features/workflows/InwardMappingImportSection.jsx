@@ -290,6 +290,23 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         let pcbSrIdx = lowerHeaders.findIndex(h => h.includes('pcb sr') || h.includes('sr no') || h.includes('serial'));
         let boxIdx = lowerHeaders.findIndex(h => h.includes('box'));
 
+        // Fallback column detection: scan data rows for serial patterns (AT... or length 16/21/22)
+        if (pcbSrIdx === -1 && barcodeIdx === -1) {
+          for (let r = headerRowIdx + 1; r < Math.min(json.length, headerRowIdx + 10); r++) {
+            const row = json[r];
+            if (!row) continue;
+            const cleanRow = Array.from(row);
+            for (let c = 0; c < cleanRow.length; c++) {
+              const val = String(cleanRow[c] || '').trim();
+              if (val.startsWith('AT') || val.length === 16 || val.length === 21 || val.length === 22) {
+                pcbSrIdx = c;
+                break;
+              }
+            }
+            if (pcbSrIdx !== -1) break;
+          }
+        }
+
         const dataRows = json.slice(headerRowIdx + 1).filter(r => r && r.length > 0);
         
         const panelsToSubmit = dataRows.map(row => {
@@ -302,6 +319,9 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
           const rawBarcode = barcodeIdx !== -1 ? cleanedRow[barcodeIdx] : '';
           const dummy = pcbSrIdx !== -1 ? cleanedRow[pcbSrIdx] : '';
           const boxVal = boxIdx !== -1 ? cleanedRow[boxIdx] : 'Box 1';
+
+          // Skip rows that contain neither a dummy nor a real barcode
+          if (!dummy && !rawBarcode) return null;
 
           // Extract real barcode if it contains actual content
           const hasRealBarcode = rawBarcode && rawBarcode !== '-';
@@ -318,7 +338,7 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
             barcode: hasRealBarcode ? rawBarcode : '',
             excel_data: rowData
           };
-        });
+        }).filter(Boolean);
 
         // Submit immediately to database
         await handleBulkSubmit(panelsToSubmit);
