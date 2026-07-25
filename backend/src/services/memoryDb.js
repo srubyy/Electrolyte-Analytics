@@ -468,6 +468,9 @@ export const getAllPanels = (filters = {}) => {
   if (filters.step_no !== undefined) {
     list = list.filter(p => p.current_step === filters.step_no);
   }
+  if (filters.lot_id !== undefined) {
+    list = list.filter(p => p.lot_id === Number(filters.lot_id));
+  }
   if (filters.notStatus !== undefined) {
     list = list.filter(p => p.status !== filters.notStatus);
   }
@@ -552,6 +555,26 @@ export const updatePanel = (id, status, currentStep, assignedEngineerId) => {
     panel.assigned_engineer_id = assignedEngineerId;
     panel.updated_at = new Date().toISOString();
     return panel;
+  }
+  return null;
+};
+
+export const updatePanelFields = (id, fields) => {
+  const panel = tables.panels.find(r => r.id === id);
+  if (panel) {
+    Object.assign(panel, fields);
+    panel.updated_at = new Date().toISOString();
+    return panel;
+  }
+  return null;
+};
+
+export const deletePanel = (id) => {
+  const idx = tables.panels.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    const deleted = tables.panels[idx];
+    tables.panels.splice(idx, 1);
+    return deleted;
   }
   return null;
 };

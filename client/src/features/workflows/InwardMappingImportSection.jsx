@@ -1,50 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { Cpu, FileSpreadsheet, Trash2, CheckCircle, AlertTriangle, Plus, X } from 'lucide-react';
+import { Cpu, FileSpreadsheet, Trash2, CheckCircle, AlertTriangle, Plus, X, Search } from 'lucide-react';
 
 const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) => {
-  // Manual Input States
+  // Database Backed States
+  const [panels, setPanels] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Row inline validation error states (panelId -> error string)
+  const [rowErrors, setRowErrors] = useState({});
+
+  // Keyboard scan state & active highlighted row
+  const [activeRowId, setActiveRowId] = useState(null);
+
+  // Manual Input States (Unchanged, unified with database spreadsheet view)
   const [manualDummy, setManualDummy] = useState('');
   const [manualReal, setManualReal] = useState('');
   const [manualBox, setManualBox] = useState('Box 1');
   const [manualList, setManualList] = useState([]);
-
-  // Excel Spreadsheet States
-  const [excelHeaders, setExcelHeaders] = useState([]); // List of raw header names
-  const [excelRows, setExcelRows] = useState([]); // List of raw row arrays
-  const [mappedPanels, setMappedPanels] = useState([]); // Array of { dummy_sr_no, real_sr_no, box_no } per row
   
-  // Drag and drop / Submission states
+  // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  // Helper function to extract manufacturing year
+  // Helper function to extract manufacturing year based on Actual Serial
   const getMfgYear = (serial) => {
     if (!serial) return null;
     const s = String(serial).trim();
     const len = s.length;
-    
+
+    // 1. Atomberg format: extract characters at index 2 and 3 (0-based) (e.g. ND21A3EHA2030096 -> 2021)
+    if (len >= 4) {
+      const yrPart = s.substring(2, 4);
+      const yr = parseInt(yrPart, 10);
+      if (!isNaN(yr) && yr >= 10 && yr <= 50) {
+        return 2000 + yr;
+      }
+    }
+
+    // 2. Fallbacks
     if (len === 16 || len === 17) {
-      const yr = parseInt(s.substring(3, 5));
-      return isNaN(yr) ? null : yr + 2000;
+      const yr = parseInt(s.substring(3, 5), 10);
+      if (!isNaN(yr)) return yr + 2000;
     }
     if (s.startsWith('AGV')) {
       const cIndex = s.indexOf('C');
       if (cIndex !== -1 && cIndex + 2 < len) {
-        const yr = parseInt(s.substring(cIndex + 1, cIndex + 3));
-        return isNaN(yr) ? null : yr + 2000;
+        const yr = parseInt(s.substring(cIndex + 1, cIndex + 3), 10);
+        if (!isNaN(yr)) return yr + 2000;
       }
     }
     if (s.startsWith('EA') && len === 22) {
-      const yr = parseInt(s.substring(15, 17));
-      return isNaN(yr) ? null : yr + 2000;
+      const yr = parseInt(s.substring(15, 17), 10);
+      if (!isNaN(yr)) return yr + 2000;
     }
     return null;
   };
 
-  // Helper to determine status and message based on real serial number
+  // Helper to determine status info based on real serial number
   const getValidationInfo = (realSerial) => {
-    if (!realSerial) {
+    if (!realSerial || realSerial === '-') {
       return {
         status: 'pending',
         color: '#ffc107',
@@ -60,7 +75,7 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         color: '#28a745',
         bg: 'rgba(40, 167, 69, 0.1)',
         border: 'rgba(40, 167, 69, 0.25)',
-        text: '✅ Valid (Unknown Format)'
+        text: '✅ Valid (Unknown)'
       };
     }
     if (year <= 2022) {
@@ -69,7 +84,7 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         color: '#dc3545',
         bg: 'rgba(220, 53, 69, 0.1)',
         border: 'rgba(220, 53, 69, 0.3)',
-        text: `🔴 Scrap (Mfg ${year})`
+        text: `🔴 SCRAP (Mfg ${year})`
       };
     }
     return {
@@ -81,7 +96,94 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
     };
   };
 
-  const validation = getValidationInfo(manualReal);
+  // Fetch panels of the current lot from the database
+  const fetchPanels = async () => {
+    if (!lotId) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/api/panels?lot_id=${lotId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPanels(data);
+      } else {
+        showToast('Failed to retrieve lot panels.', 'danger');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error loading panels.', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPanels();
+  }, [lotId]);
+
+  // Global keydown listener for barcode scanning HID mode
+  useEffect(() => {
+    let scanBuffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e) => {
+      const currentTime = Date.now();
+      if (currentTime - lastKeyTime > 50) {
+        scanBuffer = ''; // reset buffer if keystrokes are too slow
+      }
+      lastKeyTime = currentTime;
+
+      if (e.key === 'Enter') {
+        if (scanBuffer.trim().length > 0) {
+          const scannedVal = scanBuffer.trim();
+          scanBuffer = '';
+          handleGlobalScan(scannedVal);
+          e.preventDefault();
+        }
+      } else if (e.key.length === 1) {
+        scanBuffer += e.key;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [panels]);
+
+  // Locate, highlight and focus row matching scanned dummy barcode
+  const handleGlobalScan = (scannedVal) => {
+    // 8 characters or starts with 'AT' implies dummy barcode
+    const isDummy = scannedVal.length === 8 || scannedVal.startsWith('AT');
+    
+    if (isDummy) {
+      const matched = panels.find(p => {
+        const dummyVal = String(p.dummy_sr_no || '').toLowerCase();
+        const excelDummyVal = String(p.excel_data?.['PCB Sr No'] || '').toLowerCase();
+        const target = scannedVal.toLowerCase();
+        return dummyVal === target || excelDummyVal === target;
+      });
+
+      if (matched) {
+        setActiveRowId(matched.id);
+        showToast(`Located PCB Sr No: ${scannedVal}. Focus shifted to Actual Serial No.`, 'success');
+        
+        const rowEl = document.getElementById(`panel-row-${matched.id}`);
+        if (rowEl) {
+          rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        setTimeout(() => {
+          const inputEl = document.getElementById(`actual-serial-input-${matched.id}`);
+          if (inputEl) {
+            inputEl.focus();
+            inputEl.select();
+          }
+        }, 150);
+      } else {
+        showToast(`Dummy serial ${scannedVal} not found in this lot.`, 'warning');
+      }
+    }
+  };
+
+  const manualValidation = getValidationInfo(manualReal);
 
   const addManualPanel = () => {
     if (!manualDummy && !manualReal) {
@@ -95,9 +197,8 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
       box_no: manualBox,
       id: Date.now() + Math.random(),
       excel_data: {
-        "Source": "Manual Entry",
-        "Dummy Serial": manualDummy.trim(),
-        "Actual Serial": manualReal.trim(),
+        "PCB Sr No": manualDummy.trim(),
+        "Barcode": manualReal.trim(),
         "Box": manualBox
       }
     };
@@ -105,14 +206,14 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
     setManualList([...manualList, newPanel]);
     setManualDummy('');
     setManualReal('');
-    showToast('Panel added to list!', 'success');
+    showToast('Panel added to queue!', 'success');
   };
 
   const removeManualPanel = (id) => {
     setManualList(manualList.filter(p => p.id !== id));
   };
 
-  // Excel handlers
+  // Drag and drop handlers
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -136,16 +237,15 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
     }
   };
 
+  // Load and parse excel file, sending rows straight to backend database
   const handleExcelFile = (file) => {
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        
-        // Use defval: '' to ensure empty cells are populated as strings
         const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
         if (json.length < 2) {
@@ -153,15 +253,11 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
           return;
         }
 
-        // Find the maximum columns across all parsed rows to avoid truncation
         let maxCols = 0;
         json.forEach(row => {
-          if (row && row.length > maxCols) {
-            maxCols = row.length;
-          }
+          if (row && row.length > maxCols) maxCols = row.length;
         });
 
-        // Scan first 20 rows to find header row containing keywords
         let headerRowIdx = -1;
         let headers = [];
         for (let r = 0; r < Math.min(json.length, 20); r++) {
@@ -184,65 +280,48 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
           headers = Array.from(json[0] || []);
         }
 
-        // Standardize headers length
         while (headers.length < maxCols) {
           headers.push(`Column ${headers.length + 1}`);
         }
         headers = headers.map(h => String(h || '').trim());
 
         const lowerHeaders = headers.map(h => h.toLowerCase());
-        let serialIdx = lowerHeaders.findIndex(h => h.includes('sr no') || h.includes('serial') || h.includes('pcb sr'));
-        let boxIdx = lowerHeaders.findIndex(h => h.includes('box'));
         let barcodeIdx = lowerHeaders.findIndex(h => h.includes('barcode'));
-
-        // Fallback column detection
-        if (serialIdx === -1 && barcodeIdx === -1) {
-          for (let r = headerRowIdx + 1; r < Math.min(json.length, headerRowIdx + 10); r++) {
-            const row = json[r];
-            if (!row) continue;
-            const cleanRow = Array.from(row);
-            for (let c = 0; c < cleanRow.length; c++) {
-              const val = String(cleanRow[c] || '').trim();
-              if (val.startsWith('AT') || val.length === 16 || val.length === 21 || val.length === 22) {
-                serialIdx = c;
-                break;
-              }
-            }
-            if (serialIdx !== -1) break;
-          }
-        }
+        let pcbSrIdx = lowerHeaders.findIndex(h => h.includes('pcb sr') || h.includes('sr no') || h.includes('serial'));
+        let boxIdx = lowerHeaders.findIndex(h => h.includes('box'));
 
         const dataRows = json.slice(headerRowIdx + 1).filter(r => r && r.length > 0);
-
-        // Map row values and initial mapped fields
-        const standardizedRows = [];
-        const initialMappings = [];
-
-        dataRows.forEach((row, idx) => {
+        
+        const panelsToSubmit = dataRows.map(row => {
           const arr = Array.from(row);
           while (arr.length < headers.length) {
             arr.push('');
           }
           const cleanedRow = arr.map(c => String(c || '').trim());
-          standardizedRows.push(cleanedRow);
+          
+          const rawBarcode = barcodeIdx !== -1 ? cleanedRow[barcodeIdx] : '';
+          const dummy = pcbSrIdx !== -1 ? cleanedRow[pcbSrIdx] : '';
+          const boxVal = boxIdx !== -1 ? cleanedRow[boxIdx] : 'Box 1';
 
-          // Extract initial values for our mapped fields
-          const rawSerial = serialIdx !== -1 ? cleanedRow[serialIdx] : (barcodeIdx !== -1 ? cleanedRow[barcodeIdx] : '');
-          const boxNo = boxIdx !== -1 ? cleanedRow[boxIdx] : 'Box 1';
-          const isDummy = rawSerial.startsWith('AT') || rawSerial.length <= 8;
-
-          initialMappings.push({
-            dummy_sr_no: isDummy ? rawSerial : '',
-            real_sr_no: isDummy ? '' : rawSerial,
-            box_no: boxNo || 'Box 1'
+          // Extract real barcode if it contains actual content
+          const hasRealBarcode = rawBarcode && rawBarcode !== '-';
+          
+          const rowData = {};
+          headers.forEach((header, cIdx) => {
+            rowData[header] = cleanedRow[cIdx];
           });
+
+          return {
+            dummy_sr_no: dummy,
+            real_sr_no: hasRealBarcode ? rawBarcode : '',
+            box_no: boxVal || 'Box 1',
+            barcode: hasRealBarcode ? rawBarcode : '',
+            excel_data: rowData
+          };
         });
 
-        setExcelHeaders(headers);
-        setExcelRows(standardizedRows);
-        setMappedPanels(initialMappings);
-
-        showToast(`Parsed ${standardizedRows.length} rows and ${headers.length} columns successfully!`, 'success');
+        // Submit immediately to database
+        await handleBulkSubmit(panelsToSubmit);
       } catch (err) {
         console.error(err);
         showToast(`Error reading Excel: ${err.message || err}`, 'danger');
@@ -251,61 +330,29 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
     reader.readAsArrayBuffer(file);
   };
 
-  // Cell modifications
-  const handleCellChange = (rowIdx, colIdx, val) => {
-    const updated = [...excelRows];
-    updated[rowIdx][colIdx] = val;
-    setExcelRows(updated);
-  };
-
-  // Mapped fields modifications
-  const handleMappedFieldChange = (rowIdx, field, val) => {
-    const updated = [...mappedPanels];
-    updated[rowIdx][field] = val;
-    setMappedPanels(updated);
-  };
-
-  const handleAddRow = () => {
-    const empty = Array(excelHeaders.length).fill('');
-    setExcelRows([...excelRows, empty]);
-    setMappedPanels([...mappedPanels, { dummy_sr_no: '', real_sr_no: '', box_no: 'Box 1' }]);
-  };
-
-  const handleDeleteRow = (rowIdx) => {
-    setExcelRows(excelRows.filter((_, idx) => idx !== rowIdx));
-    setMappedPanels(mappedPanels.filter((_, idx) => idx !== rowIdx));
-  };
-
-  // Submit
-  const handleBulkSubmit = async (panels) => {
+  // Submit bulk payload helper
+  const handleBulkSubmit = async (panelsList) => {
     if (!lotId) {
       showToast('Please select a lot first.', 'warning');
       return;
     }
-    if (panels.length === 0) {
-      showToast('No panels to submit.', 'warning');
-      return;
-    }
-
     setSubmitting(true);
     try {
       const res = await apiFetch('/api/panels/import', {
         method: 'POST',
         body: JSON.stringify({
           lot_id: parseInt(lotId),
-          panels
+          panels: panelsList
         })
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(data.message || 'Successfully imported panels!');
+        showToast(data.message || 'Successfully saved panels to database!');
         setManualList([]);
-        setExcelHeaders([]);
-        setExcelRows([]);
-        setMappedPanels([]);
+        fetchPanels();
         if (onSuccess) onSuccess();
       } else {
-        showToast(data.error || 'Failed to import panels.', 'danger');
+        showToast(data.error || 'Failed to save panels.', 'danger');
       }
     } catch (err) {
       console.error(err);
@@ -315,45 +362,220 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
     }
   };
 
-  const handleSpreadsheetSubmit = () => {
-    const panelsToSubmit = mappedPanels.map((mapping, idx) => {
-      const dummy = String(mapping.dummy_sr_no || '').trim();
-      const real = String(mapping.real_sr_no || '').trim();
-      const box = String(mapping.box_no || '').trim() || 'Box 1';
+  // Edit custom cell in database immediately
+  const handleCellChange = async (panelId, colKey, val) => {
+    // Optimistic update
+    setPanels(prev => prev.map(p => {
+      if (p.id === panelId) {
+        const updatedData = { ...(p.excel_data || {}) };
+        updatedData[colKey] = val;
+        return { ...p, excel_data: updatedData };
+      }
+      return p;
+    }));
 
-      if (!dummy && !real) return null;
+    try {
+      const panelToUpdate = panels.find(p => p.id === panelId);
+      const updatedData = { ...(panelToUpdate.excel_data || {}) };
+      updatedData[colKey] = val;
 
-      // Pack the entire row data including any user edits
-      const row = excelRows[idx] || [];
-      const rowData = {};
-      excelHeaders.forEach((header, cIdx) => {
-        rowData[header] = row[cIdx] || '';
+      await apiFetch(`/api/panels/${panelId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ excel_data: updatedData })
       });
+    } catch (err) {
+      console.error('Cell update failed:', err);
+      showToast('Failed to save cell update to database.', 'danger');
+    }
+  };
 
-      return {
-        dummy_sr_no: dummy,
-        real_sr_no: real,
-        box_no: box,
-        excel_data: rowData
-      };
-    }).filter(Boolean);
+  // Edit Actual Serial No in database immediately (with scan validation)
+  const handleActualSerialChange = async (panelId, val) => {
+    const cleanVal = String(val).trim();
+    setRowErrors(prev => ({ ...prev, [panelId]: null }));
 
-    if (panelsToSubmit.length === 0) {
-      showToast('Please ensure you have entered a Dummy or Real Serial Number for the staging rows.', 'warning');
+    // Optimistic update
+    setPanels(prev => prev.map(p => {
+      if (p.id === panelId) {
+        const mfgYear = getMfgYear(cleanVal);
+        let status = 'Repairable';
+        let scrapReason = null;
+        if (mfgYear && mfgYear <= 2022) {
+          status = 'Scrap';
+          scrapReason = `Manufacturing Year (${mfgYear}) <= 2022`;
+        }
+        return {
+          ...p,
+          real_sr_no: cleanVal,
+          barcode: cleanVal,
+          mfg_year: mfgYear,
+          status,
+          scrap_reason: scrapReason
+        };
+      }
+      return p;
+    }));
+
+    if (!cleanVal || cleanVal === '-') {
+      try {
+        await apiFetch(`/api/panels/${panelId}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ real_sr_no: '', barcode: '' })
+        });
+        if (onSuccess) onSuccess();
+      } catch (err) {
+        console.error(err);
+      }
       return;
     }
 
-    handleBulkSubmit(panelsToSubmit);
+    // Verify barcode exists in database
+    try {
+      const searchRes = await apiFetch(`/api/panels/search?barcode=${encodeURIComponent(cleanVal)}`);
+      if (!searchRes.ok) {
+        setRowErrors(prev => ({ ...prev, [panelId]: 'Barcode not found — rescan' }));
+        return;
+      }
+
+      const res = await apiFetch(`/api/panels/${panelId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ real_sr_no: cleanVal, barcode: cleanVal })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setPanels(prev => prev.map(p => p.id === panelId ? data.panel : p));
+        if (onSuccess) onSuccess();
+      } else {
+        setRowErrors(prev => ({ ...prev, [panelId]: 'Error saving barcode — try again' }));
+      }
+    } catch (err) {
+      console.error(err);
+      setRowErrors(prev => ({ ...prev, [panelId]: 'Network error validating barcode' }));
+    }
   };
 
-  // Spreadsheet editor view
-  if (excelRows.length > 0) {
+  // Edit base field directly
+  const handleBaseFieldChange = async (panelId, fieldName, val) => {
+    setPanels(prev => prev.map(p => p.id === panelId ? { ...p, [fieldName]: val } : p));
+    try {
+      await apiFetch(`/api/panels/${panelId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ [fieldName]: val })
+      });
+      if (onSuccess) onSuccess();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to save field change.', 'danger');
+    }
+  };
+
+  // Add empty row
+  const handleAddRow = async () => {
+    try {
+      const res = await apiFetch('/api/panels', {
+        method: 'POST',
+        body: JSON.stringify({ lot_id: parseInt(lotId) })
+      });
+      if (res.ok) {
+        fetchPanels();
+        if (onSuccess) onSuccess();
+        showToast('Added new empty row.', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to append row.', 'danger');
+    }
+  };
+
+  // Delete row
+  const handleDeleteRow = async (panelId) => {
+    try {
+      const res = await apiFetch(`/api/panels/${panelId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchPanels();
+        if (onSuccess) onSuccess();
+        showToast('Panel removed successfully.', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to delete row.', 'danger');
+    }
+  };
+
+  // Clear all lot panels
+  const handleClearLot = async () => {
+    if (!window.confirm("Are you sure you want to clear all imported panels for this lot? This cannot be undone.")) return;
+    try {
+      const res = await apiFetch(`/api/panels/clear?lot_id=${lotId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setPanels([]);
+        if (onSuccess) onSuccess();
+        showToast('Cleared lot panels.', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to clear panels.', 'danger');
+    }
+  };
+
+  // Extract dynamically headers of raw excel columns
+  const getExcelHeaders = () => {
+    const headersSet = new Set();
+    panels.forEach(p => {
+      if (p.excel_data) {
+        Object.keys(p.excel_data).forEach(k => headersSet.add(k));
+      }
+    });
+    return Array.from(headersSet);
+  };
+
+  const rawHeaders = getExcelHeaders();
+
+  // Create columns list ensuring correct insertion order
+  const getColumns = () => {
+    const cols = [];
+    let actualSerialInserted = false;
+    let scrapInserted = false;
+
+    rawHeaders.forEach(h => {
+      cols.push({ key: h, type: 'excel', label: h });
+      if (h.toLowerCase() === 'barcode') {
+        cols.push({ key: 'actual_serial_no', type: 'actual_serial_no', label: 'Actual Serial No' });
+        actualSerialInserted = true;
+      }
+      if (h.toLowerCase() === 'mfg year') {
+        cols.push({ key: 'scrap', type: 'scrap', label: 'Scrap' });
+        scrapInserted = true;
+      }
+    });
+
+    if (!actualSerialInserted) {
+      cols.push({ key: 'actual_serial_no', type: 'actual_serial_no', label: 'Actual Serial No' });
+    }
+    if (!scrapInserted) {
+      cols.push({ key: 'scrap', type: 'scrap', label: 'Scrap' });
+    }
+
+    return cols;
+  };
+
+  const columns = getColumns();
+
+  // Show interactive spreadsheet grid when panels exist
+  if (panels.length > 0) {
     return (
       <div className="glass-panel" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16, marginTop: 12 }}>
-        <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-primary)' }}>Spreadsheet Review Editor</h3>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>You can edit Dummy No, Real No, Box No directly. Raw Excel values are fully editable too!</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              Scan dummy barcode to search. Edit any cell inline to update database immediately.
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -367,101 +589,164 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => { setExcelHeaders([]); setExcelRows([]); setMappedPanels([]); }}
+              onClick={handleClearLot}
               style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', fontSize: '0.72rem', background: '#dc3545', color: '#fff', border: 'none' }}
             >
-              <X size={14} /> Cancel Import
+              <X size={14} /> Clear All
             </button>
           </div>
         </div>
 
         {/* Scrollable table grid */}
-        <div style={{ overflowX: 'auto', border: '1px solid var(--card-border)', borderRadius: 8, maxHeight: 400, overflowY: 'auto' }}>
+        <div style={{ overflowX: 'auto', border: '1px solid var(--card-border)', borderRadius: 8, maxHeight: 450, overflowY: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--card-border)' }}>
-                <th style={{ padding: '8px 12px', width: 40, position: 'sticky', left: 0, background: 'var(--card-bg)', zIndex: 10 }}>#</th>
+                <th style={{ padding: '8px 12px', width: 45, position: 'sticky', left: 0, background: 'var(--card-bg)', zIndex: 10 }}>#</th>
+                <th style={{ padding: '8px 12px', minWidth: 100, background: 'rgba(255,255,255,0.01)', color: 'var(--text-muted)' }}>Dummy SR</th>
+                <th style={{ padding: '8px 12px', minWidth: 90, background: 'rgba(255,255,255,0.01)', color: 'var(--text-muted)' }}>Box No</th>
                 
-                {/* 1. Mapped Columns (Locked to beginning of viewport) */}
-                <th style={{ padding: '8px 12px', minWidth: 130, background: 'rgba(var(--color-primary-rgb), 0.05)', color: 'var(--color-primary)' }}>Dummy SR No</th>
-                <th style={{ padding: '8px 12px', minWidth: 180, background: 'rgba(var(--color-primary-rgb), 0.05)', color: 'var(--color-primary)' }}>Real SR No</th>
-                <th style={{ padding: '8px 12px', minWidth: 100, background: 'rgba(var(--color-primary-rgb), 0.05)', color: 'var(--color-primary)' }}>Box No</th>
-                <th style={{ padding: '8px 12px', minWidth: 80, background: 'rgba(var(--color-primary-rgb), 0.05)', color: 'var(--color-primary)' }}>Mfg Year</th>
-                <th style={{ padding: '8px 12px', minWidth: 110, background: 'rgba(var(--color-primary-rgb), 0.05)', color: 'var(--color-primary)' }}>Validation</th>
-                
-                {/* 2. Raw Excel Columns */}
-                {excelHeaders.map((header, idx) => (
-                  <th key={idx} style={{ padding: '8px 12px', minWidth: 120, color: 'var(--text-muted)' }}>
-                    {header}
+                {/* Dynamically Ordered Excel Headers + Custom Injected Headers */}
+                {columns.map((col, idx) => (
+                  <th
+                    key={idx}
+                    style={{
+                      padding: '8px 12px',
+                      minWidth: col.type === 'actual_serial_no' ? 190 : col.type === 'scrap' ? 90 : 120,
+                      background: col.type === 'actual_serial_no' ? 'rgba(var(--color-primary-rgb), 0.05)' : 'transparent',
+                      color: col.type === 'actual_serial_no' ? 'var(--color-primary)' : 'var(--text-main)'
+                    }}
+                  >
+                    {col.label}
                   </th>
                 ))}
                 
+                <th style={{ padding: '8px 12px', minWidth: 100 }}>Validation</th>
                 <th style={{ padding: '8px 12px', width: 50 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {excelRows.map((row, rowIdx) => {
-                const mapping = mappedPanels[rowIdx] || { dummy_sr_no: '', real_sr_no: '', box_no: 'Box 1' };
-                const val = getValidationInfo(mapping.real_sr_no);
-                
+              {panels.map((panel, rowIdx) => {
+                const calculatedYear = getMfgYear(panel.real_sr_no);
+                const valInfo = getValidationInfo(panel.real_sr_no);
+                const isHighlighted = activeRowId === panel.id;
+
                 return (
-                  <tr key={rowIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)', background: val.status === 'scrap' ? 'rgba(220, 53, 69, 0.02)' : 'transparent' }}>
-                    <td style={{ padding: '6px 12px', color: 'var(--text-muted)', fontWeight: 700, position: 'sticky', left: 0, background: 'var(--card-bg)', zIndex: 5 }}>{rowIdx + 1}</td>
-                    
-                    {/* 1. Mapped Columns inputs */}
-                    <td style={{ padding: '4px 6px', background: 'rgba(255,255,255,0.01)' }}>
-                      <input
-                        type="text"
-                        value={mapping.dummy_sr_no}
-                        placeholder="e.g. AT303685"
-                        onChange={e => handleMappedFieldChange(rowIdx, 'dummy_sr_no', e.target.value)}
-                        style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--color-primary)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
-                      />
-                    </td>
-                    <td style={{ padding: '4px 6px', background: 'rgba(255,255,255,0.01)' }}>
-                      <input
-                        type="text"
-                        value={mapping.real_sr_no}
-                        placeholder="e.g. APJ2115352A05963"
-                        onChange={e => handleMappedFieldChange(rowIdx, 'real_sr_no', e.target.value)}
-                        style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--color-primary)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
-                      />
-                    </td>
-                    <td style={{ padding: '4px 6px', background: 'rgba(255,255,255,0.01)' }}>
-                      <input
-                        type="text"
-                        value={mapping.box_no}
-                        placeholder="Box 1"
-                        onChange={e => handleMappedFieldChange(rowIdx, 'box_no', e.target.value)}
-                        style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--color-primary)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
-                      />
-                    </td>
-                    <td style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.01)', fontWeight: 700, color: 'var(--text-muted)' }}>
-                      {getMfgYear(mapping.real_sr_no) || '-'}
-                    </td>
-                    <td style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.01)' }}>
-                      <span style={{ padding: '3px 6px', borderRadius: 6, background: val.bg, color: val.color, fontSize: '0.65rem', fontWeight: 700, border: `1px solid ${val.border}` }}>
-                        {val.text}
-                      </span>
+                  <tr
+                    key={panel.id}
+                    id={`panel-row-${panel.id}`}
+                    style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.02)',
+                      background: isHighlighted 
+                        ? 'rgba(var(--color-primary-rgb), 0.15)' 
+                        : (valInfo.status === 'scrap' ? 'rgba(220, 53, 69, 0.05)' : 'transparent'),
+                      transition: 'all 0.25s ease'
+                    }}
+                  >
+                    {/* Index */}
+                    <td style={{ padding: '6px 12px', color: 'var(--text-muted)', fontWeight: 700, position: 'sticky', left: 0, background: 'var(--card-bg)', zIndex: 5 }}>
+                      {rowIdx + 1}
                     </td>
 
-                    {/* 2. Raw Excel Columns inputs */}
-                    {row.map((cell, colIdx) => (
-                      <td key={colIdx} style={{ padding: '4px 6px' }}>
-                        <input
-                          type="text"
-                          value={cell || ''}
-                          onChange={e => handleCellChange(rowIdx, colIdx, e.target.value)}
-                          style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
-                        />
-                      </td>
-                    ))}
+                    {/* Dummy SR (Base Field) */}
+                    <td style={{ padding: '4px 6px' }}>
+                      <input
+                        type="text"
+                        value={panel.dummy_sr_no || ''}
+                        onChange={e => handleBaseFieldChange(panel.id, 'dummy_sr_no', e.target.value)}
+                        style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
+                      />
+                    </td>
+
+                    {/* Box No (Base Field) */}
+                    <td style={{ padding: '4px 6px' }}>
+                      <input
+                        type="text"
+                        value={panel.box_no || ''}
+                        onChange={e => handleBaseFieldChange(panel.id, 'box_no', e.target.value)}
+                        style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
+                      />
+                    </td>
+
+                    {/* Excel Columns & Calculated/Injected Columns */}
+                    {columns.map((col, idx) => {
+                      if (col.type === 'actual_serial_no') {
+                        return (
+                          <td key={idx} style={{ padding: '4px 6px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <input
+                                id={`actual-serial-input-${panel.id}`}
+                                type="text"
+                                value={panel.real_sr_no || ''}
+                                placeholder="Scan actual barcode"
+                                onChange={e => handleActualSerialChange(panel.id, e.target.value)}
+                                style={{
+                                  padding: '4px 8px',
+                                  background: 'var(--input-bg)',
+                                  border: rowErrors[panel.id] ? '1px solid #dc3545' : '1px solid var(--color-primary)',
+                                  color: 'var(--text-main)',
+                                  borderRadius: 4,
+                                  width: '100%',
+                                  fontSize: '0.72rem'
+                                }}
+                              />
+                              {rowErrors[panel.id] && (
+                                <span style={{ color: '#dc3545', fontSize: '0.62rem', marginTop: 2 }}>
+                                  {rowErrors[panel.id]}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      if (col.type === 'scrap') {
+                        return (
+                          <td key={idx} style={{ padding: '6px 12px', fontWeight: 800 }}>
+                            {valInfo.status === 'scrap' ? (
+                              <span style={{ color: '#dc3545' }}>SCRAP</span>
+                            ) : (
+                              ''
+                            )}
+                          </td>
+                        );
+                      }
+
+                      // Hijack display of 'Mfg Year' to show recalculated year live
+                      if (col.key.toLowerCase() === 'mfg year') {
+                        return (
+                          <td key={idx} style={{ padding: '6px 12px', fontWeight: 700 }}>
+                            {calculatedYear || ''}
+                          </td>
+                        );
+                      }
+
+                      // Raw Excel Cell
+                      const rawVal = panel.excel_data ? panel.excel_data[col.key] : '';
+                      return (
+                        <td key={idx} style={{ padding: '4px 6px' }}>
+                          <input
+                            type="text"
+                            value={rawVal || ''}
+                            onChange={e => handleCellChange(panel.id, col.key, e.target.value)}
+                            style={{ padding: '4px 8px', background: 'var(--input-bg)', border: '1px solid var(--card-border)', color: 'var(--text-main)', borderRadius: 4, width: '100%', fontSize: '0.72rem' }}
+                          />
+                        </td>
+                      );
+                    })}
+
+                    {/* Validation */}
+                    <td style={{ padding: '6px 12px' }}>
+                      <span style={{ padding: '3px 6px', borderRadius: 6, background: valInfo.bg, color: valInfo.color, fontSize: '0.65rem', fontWeight: 700, border: `1px solid ${valInfo.border}` }}>
+                        {valInfo.text}
+                      </span>
+                    </td>
 
                     {/* Actions */}
                     <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                       <button
                         type="button"
-                        onClick={() => handleDeleteRow(rowIdx)}
+                        onClick={() => handleDeleteRow(panel.id)}
                         style={{ background: 'transparent', border: 'none', color: '#dc3545', cursor: 'pointer' }}
                       >
                         <Trash2 size={14} />
@@ -473,22 +758,11 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
             </tbody>
           </table>
         </div>
-
-        {/* Submit */}
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleSpreadsheetSubmit}
-          disabled={submitting}
-          style={{ alignSelf: 'flex-end', background: '#28a745', borderColor: '#28a745', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          {submitting ? 'Importing...' : `Import Mapped Spreadsheet (${excelRows.length} Rows)`}
-        </button>
       </div>
     );
   }
 
-  // Default Entry Screen
+  // File Upload Default view (when no panels in lot yet)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 12 }}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -531,9 +805,9 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
               <div style={{
                 padding: '10px 12px',
                 borderRadius: 8,
-                background: validation.bg,
-                border: `1px solid ${validation.border}`,
-                color: validation.color,
+                background: manualValidation.bg,
+                border: `1px solid ${manualValidation.border}`,
+                color: manualValidation.color,
                 fontSize: '0.75rem',
                 fontWeight: 700,
                 marginTop: 4,
@@ -542,7 +816,7 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
                 gap: 8,
                 transition: 'all 0.3s ease'
               }}>
-                {validation.text}
+                {manualValidation.text}
               </div>
             )}
 

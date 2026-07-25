@@ -62,6 +62,10 @@ export const Panel = {
       params.push(filters.step_no);
       conditions.push(`p.current_step = $${params.length}`);
     }
+    if (filters.lot_id !== undefined) {
+      params.push(filters.lot_id);
+      conditions.push(`p.lot_id = $${params.length}`);
+    }
     if (filters.notStatus !== undefined) {
       params.push(filters.notStatus);
       conditions.push(`p.status != $${params.length}`);
@@ -180,6 +184,35 @@ export const Panel = {
        RETURNING *`,
       [status, currentStep, assignedEngineerId, id]
     );
+    return res.rows[0];
+  },
+
+  async updatePanelFields(id, fields) {
+    if (isFallback()) {
+      return memoryDb.updatePanelFields(Number(id), fields);
+    }
+
+    const setClauses = [];
+    const params = [];
+
+    Object.keys(fields).forEach((key) => {
+      params.push(fields[key]);
+      setClauses.push(`${key} = $${params.length}`);
+    });
+
+    if (setClauses.length === 0) return null;
+
+    params.push(id);
+    const sql = `UPDATE panels SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${params.length} RETURNING *`;
+    const res = await pool.query(sql, params);
+    return res.rows[0];
+  },
+
+  async delete(id) {
+    if (isFallback()) {
+      return memoryDb.deletePanel(Number(id));
+    }
+    const res = await pool.query('DELETE FROM panels WHERE id = $1 RETURNING *', [id]);
     return res.rows[0];
   },
 

@@ -5,15 +5,56 @@ import { PendingLog } from '../models/PendingLog.js';
 import { RepairStep } from '../models/RepairStep.js';
 import * as memoryDb from '../services/memoryDb.js';
 
+const extractMfgYear = (serial) => {
+  if (!serial) return null;
+  const s = String(serial).trim();
+  const len = s.length;
+
+  // Guard: if it starts with 'AT' and has length <= 8, it is a dummy serial number
+  if (s.startsWith('AT') && len <= 8) {
+    return null;
+  }
+
+  // 1. Atomberg format: extract characters at index 2 and 3 (0-based)
+  if (len >= 4) {
+    const yrPart = s.substring(2, 4);
+    const yr = parseInt(yrPart, 10);
+    if (!isNaN(yr) && yr >= 10 && yr <= 50) {
+      return 2000 + yr;
+    }
+  }
+
+  // 2. Legacy fallback patterns
+  if (len === 16 || len === 17) {
+    const yr = parseInt(s.substring(3, 5), 10);
+    if (!isNaN(yr)) return yr + 2000;
+  }
+  if (s.startsWith('AGV')) {
+    const cIndex = s.indexOf('C');
+    if (cIndex !== -1 && cIndex + 2 < len) {
+      const yr = parseInt(s.substring(cIndex + 1, cIndex + 3), 10);
+      if (!isNaN(yr)) return yr + 2000;
+    }
+  }
+  if (s.startsWith('EA') && len === 22) {
+    const yr = parseInt(s.substring(15, 17), 10);
+    if (!isNaN(yr)) return yr + 2000;
+  }
+  return null;
+};
+
 export const getPanels = async (req, res) => {
-  const { step_no } = req.query;
+  const { step_no, lot_id } = req.query;
 
   try {
     const filters = {};
     if (step_no) {
       filters.step_no = parseInt(step_no);
+      filters.notStatus = 'Scrap';
     }
-    filters.notStatus = 'Scrap';
+    if (lot_id) {
+      filters.lot_id = parseInt(lot_id);
+    }
 
     // RLS Context scoped via req.user passed to model
     const list = await Panel.getAll(filters, req.user);
@@ -485,29 +526,6 @@ export const importPanels = async (req, res) => {
 
     const importedPanels = [];
 
-    // Helper function for year calculation
-    const extractMfgYear = (serial) => {
-      if (!serial) return null;
-      const s = String(serial).trim();
-      const len = s.length;
-      if (len === 16 || len === 17) {
-        const yr = parseInt(s.substring(3, 5));
-        return isNaN(yr) ? null : yr + 2000;
-      }
-      if (s.startsWith('AGV')) {
-        const cIndex = s.indexOf('C');
-        if (cIndex !== -1 && cIndex + 2 < len) {
-          const yr = parseInt(s.substring(cIndex + 1, cIndex + 3));
-          return isNaN(yr) ? null : yr + 2000;
-        }
-      }
-      if (s.startsWith('EA') && len === 22) {
-        const yr = parseInt(s.substring(15, 17));
-        return isNaN(yr) ? null : yr + 2000;
-      }
-      return null;
-    };
-
     // Get current maximum serial number count inside this lot to auto-increment sr_no
     let currentMaxSr = 0;
     if (isFallback()) {
@@ -626,6 +644,158 @@ export const importPanels = async (req, res) => {
     }
     console.error('Excel Import panels error:', err);
     res.status(500).json({ error: err.message || "Failed to import panels." });
+  }
+};
+
+export const patchPanel = async (req, res) => {
+  const { id } = req.params;
+  const fields = { ...req.body };
+
+  try {
+    const panel = await Panel.findById(id);
+    if (!panel) {
+      return res.status(404).json({ error: "Panel not found." });
+    }
+
+    // Recalculate year & scrap status if barcode/real_sr_no is modified
+    if (fields.real_sr_no !== undefined || fields.barcode !== undefined) {
+      const newSerial = fields.real_sr_no || fields.barcode || '';
+      const cleanSerial = String(newSerial).trim();
+      if (cleanSerial && cleanSerial !== '-') {
+        const mfgYear = extractMfgYear(cleanSerial);
+        fields.mfg_year = mfgYear;
+        fields.barcode = cleanSerial;
+        fields.real_sr_no = cleanSerial;
+        if (mfgYear && mfgYear <= 2022) {
+          fields.status = 'Scrap';
+          fields.scrap_reason = `Manufacturing Year (${mfgYear}) <= 2022`;
+        } else {
+          fields.status = 'Repairable';
+          fields.scrap_reason = null;
+        }
+      } else {
+        fields.mfg_year = null;
+        fields.barcode = fields.barcode || '';
+        fields.real_sr_no = '';
+        fields.status = 'Repairable';
+        fields.scrap_reason = null;
+      }
+    }
+
+    const updated = await Panel.updatePanelFields(id, fields);
+    res.json({ success: true, panel: updated });
+  } catch (err) {
+    console.error('Patch panel error:', err);
+    res.status(500).json({ error: err.message || "Failed to update panel." });
+  }
+};
+
+export const deletePanel = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const deleted = await Panel.delete(id);
+    res.json({ success: true, message: "Panel deleted successfully.", panel: deleted });
+  } catch (err) {
+    console.error('Delete panel error:', err);
+    res.status(500).json({ error: "Failed to delete panel." });
+  }
+};
+
+export const createPanel = async (req, res) => {
+  const { lot_id, side, box_no, dummy_sr_no, real_sr_no, excel_data } = req.body;
+
+  if (!lot_id) {
+    return res.status(400).json({ error: "Missing lot_id." });
+  }
+
+  try {
+    const lot = await Lot.findById(lot_id);
+    if (!lot) {
+      return res.status(404).json({ error: "Lot not found." });
+    }
+
+    let currentMaxSr = 0;
+    if (isFallback()) {
+      const lotPanels = memoryDb.tables.panels.filter(p => p.lot_id === lot.id);
+      currentMaxSr = lotPanels.reduce((max, p) => Math.max(max, p.sr_no || 0), 0);
+    } else {
+      const srRes = await pool.query('SELECT COALESCE(MAX(sr_no), 0) as max_sr FROM panels WHERE lot_id = $1', [lot.id]);
+      currentMaxSr = parseInt(srRes.rows[0].max_sr || 0);
+    }
+
+    const srNo = currentMaxSr + 1;
+    const real = real_sr_no ? String(real_sr_no).trim() : null;
+    const dummy = dummy_sr_no ? String(dummy_sr_no).trim() : null;
+    const box = box_no ? String(box_no).trim() : 'Box 1';
+    
+    const mfgYear = extractMfgYear(real);
+    let status = 'Repairable';
+    let scrapReason = null;
+    if (mfgYear && mfgYear <= 2022) {
+      status = 'Scrap';
+      scrapReason = `Manufacturing Year (${mfgYear}) <= 2022`;
+    }
+
+    const pitchStr = lot.pixel_pitch.replace('.', '');
+    const sideVal = side || 'Left';
+    const sideChar = sideVal[0];
+    const srStr = String(srNo).padStart(4, '0');
+    const barcode = real || `ESRP2${pitchStr}${lot.lot_no}E26${lot.batch_no}${sideChar}${srStr}`;
+
+    let newPanel;
+    if (isFallback()) {
+      newPanel = {
+        id: memoryDb.tables.panels.reduce((max, p) => Math.max(max, p.id || 0), 0) + 1,
+        lot_id: lot.id,
+        sr_no: srNo,
+        side: sideVal,
+        barcode,
+        status,
+        scrap_reason: scrapReason,
+        current_step: 1,
+        assigned_engineer_id: null,
+        dummy_sr_no: dummy,
+        real_sr_no: real,
+        mfg_year: mfgYear,
+        box_no: box,
+        excel_data: excel_data || {},
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      memoryDb.tables.panels.push(newPanel);
+    } else {
+      const insRes = await pool.query(`
+        INSERT INTO panels (lot_id, sr_no, side, barcode, status, scrap_reason, current_step, dummy_sr_no, real_sr_no, mfg_year, box_no, excel_data)
+        VALUES ($1, $2, $3, $4, $5, $6, 1, $7, $8, $9, $10, $11)
+        RETURNING *
+      `, [lot.id, srNo, sideVal, barcode, status, scrapReason, dummy, real, mfgYear, box, excel_data ? JSON.stringify(excel_data) : null]);
+      newPanel = insRes.rows[0];
+    }
+
+    res.status(201).json({ success: true, panel: newPanel });
+  } catch (err) {
+    console.error('Create panel error:', err);
+    res.status(500).json({ error: "Failed to create panel." });
+  }
+};
+
+export const clearLotPanels = async (req, res) => {
+  const { lot_id } = req.query;
+  if (!lot_id) {
+    return res.status(400).json({ error: "Missing lot_id." });
+  }
+
+  try {
+    if (isFallback()) {
+      memoryDb.tables.panels = memoryDb.tables.panels.filter(p => p.lot_id !== parseInt(lot_id));
+    } else {
+      await pool.query('DELETE FROM panels WHERE lot_id = $1', [lot_id]);
+    }
+    res.json({ success: true, message: "Cleared all panels for this lot." });
+  } catch (err) {
+    console.error('Clear panels error:', err);
+    res.status(500).json({ error: "Failed to clear panels." });
   }
 };
 
