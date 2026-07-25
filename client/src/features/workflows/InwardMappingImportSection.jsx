@@ -23,6 +23,11 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
 
+  // Sheet selector modal states
+  const [showSheetSelector, setShowSheetSelector] = useState(false);
+  const [workbookSheets, setWorkbookSheets] = useState([]);
+  const [pendingWorkbook, setPendingWorkbook] = useState(null);
+
   // Helper function to extract manufacturing year based on Actual Serial
   const getMfgYear = (serial) => {
     if (!serial) return null;
@@ -244,110 +249,129 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
       try {
         const data = new Uint8Array(event.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-
-        if (json.length < 2) {
-          showToast('Excel sheet has no data rows.', 'warning');
-          return;
-        }
-
-        let maxCols = 0;
-        json.forEach(row => {
-          if (row && row.length > maxCols) maxCols = row.length;
-        });
-
-        let headerRowIdx = -1;
-        let headers = [];
-        for (let r = 0; r < Math.min(json.length, 20); r++) {
-          const row = json[r];
-          if (!row) continue;
-          const mappedRow = Array.from(row).map(h => String(h || '').trim());
-          const hasSerial = mappedRow.some(h => {
-            const low = h.toLowerCase();
-            return low.includes('sr no') || low.includes('serial') || low.includes('barcode') || low.includes('pcb sr');
-          });
-          if (hasSerial) {
-            headerRowIdx = r;
-            headers = mappedRow;
-            break;
-          }
-        }
-
-        if (headerRowIdx === -1) {
-          headerRowIdx = 0;
-          headers = Array.from(json[0] || []);
-        }
-
-        while (headers.length < maxCols) {
-          headers.push(`Column ${headers.length + 1}`);
-        }
-        headers = headers.map(h => String(h || '').trim());
-
-        const lowerHeaders = headers.map(h => h.toLowerCase());
-        let barcodeIdx = lowerHeaders.findIndex(h => h.includes('barcode'));
-        let pcbSrIdx = lowerHeaders.findIndex(h => h.includes('pcb sr') || h.includes('sr no') || h.includes('serial'));
-        let boxIdx = lowerHeaders.findIndex(h => h.includes('box'));
-
-        // Fallback column detection: scan data rows for serial patterns (AT... or length 16/21/22)
-        if (pcbSrIdx === -1 && barcodeIdx === -1) {
-          for (let r = headerRowIdx + 1; r < Math.min(json.length, headerRowIdx + 10); r++) {
-            const row = json[r];
-            if (!row) continue;
-            const cleanRow = Array.from(row);
-            for (let c = 0; c < cleanRow.length; c++) {
-              const val = String(cleanRow[c] || '').trim();
-              if (val.startsWith('AT') || val.length === 16 || val.length === 21 || val.length === 22) {
-                pcbSrIdx = c;
-                break;
-              }
-            }
-            if (pcbSrIdx !== -1) break;
-          }
-        }
-
-        const dataRows = json.slice(headerRowIdx + 1).filter(r => r && r.length > 0);
         
-        const panelsToSubmit = dataRows.map(row => {
-          const arr = Array.from(row);
-          while (arr.length < headers.length) {
-            arr.push('');
-          }
-          const cleanedRow = arr.map(c => String(c || '').trim());
-          
-          const rawBarcode = barcodeIdx !== -1 ? cleanedRow[barcodeIdx] : '';
-          const dummy = pcbSrIdx !== -1 ? cleanedRow[pcbSrIdx] : '';
-          const boxVal = boxIdx !== -1 ? cleanedRow[boxIdx] : 'Box 1';
-
-          // Skip rows that contain neither a dummy nor a real barcode
-          if (!dummy && !rawBarcode) return null;
-
-          // Extract real barcode if it contains actual content
-          const hasRealBarcode = rawBarcode && rawBarcode !== '-';
-          
-          const rowData = {};
-          headers.forEach((header, cIdx) => {
-            rowData[header] = cleanedRow[cIdx];
-          });
-
-          return {
-            dummy_sr_no: dummy,
-            real_sr_no: hasRealBarcode ? rawBarcode : '',
-            box_no: boxVal || 'Box 1',
-            barcode: hasRealBarcode ? rawBarcode : '',
-            excel_data: rowData
-          };
-        }).filter(Boolean);
-
-        // Submit immediately to database
-        await handleBulkSubmit(panelsToSubmit);
+        if (workbook.SheetNames.length === 1) {
+          importSheet(workbook, workbook.SheetNames[0]);
+        } else {
+          setWorkbookSheets(workbook.SheetNames);
+          setPendingWorkbook(workbook);
+          setShowSheetSelector(true);
+        }
       } catch (err) {
         console.error(err);
         showToast(`Error reading Excel: ${err.message || err}`, 'danger');
       }
     };
     reader.readAsArrayBuffer(file);
+  };
+
+  const importSheet = async (workbook, sheetName) => {
+    try {
+      const worksheet = workbook.Sheets[sheetName];
+      const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+      if (json.length < 2) {
+        showToast(`Sheet "${sheetName}" has no data rows.`, 'warning');
+        return;
+      }
+
+      let maxCols = 0;
+      json.forEach(row => {
+        if (row && row.length > maxCols) maxCols = row.length;
+      });
+
+      let headerRowIdx = -1;
+      let headers = [];
+      for (let r = 0; r < Math.min(json.length, 20); r++) {
+        const row = json[r];
+        if (!row) continue;
+        const mappedRow = Array.from(row).map(h => String(h || '').trim());
+        const hasSerial = mappedRow.some(h => {
+          const low = h.toLowerCase();
+          return low.includes('sr no') || low.includes('serial') || low.includes('barcode') || low.includes('pcb sr');
+        });
+        if (hasSerial) {
+          headerRowIdx = r;
+          headers = mappedRow;
+          break;
+        }
+      }
+
+      if (headerRowIdx === -1) {
+        headerRowIdx = 0;
+        headers = Array.from(json[0] || []);
+      }
+
+      while (headers.length < maxCols) {
+        headers.push(`Column ${headers.length + 1}`);
+      }
+      headers = headers.map(h => String(h || '').trim());
+
+      const lowerHeaders = headers.map(h => h.toLowerCase());
+      let barcodeIdx = lowerHeaders.findIndex(h => h.includes('barcode'));
+      let pcbSrIdx = lowerHeaders.findIndex(h => h.includes('pcb sr') || h.includes('sr no') || h.includes('serial'));
+      let boxIdx = lowerHeaders.findIndex(h => h.includes('box'));
+
+      // Fallback column detection: scan data rows for serial patterns (AT... or length 16/21/22)
+      if (pcbSrIdx === -1 && barcodeIdx === -1) {
+        for (let r = headerRowIdx + 1; r < Math.min(json.length, headerRowIdx + 10); r++) {
+          const row = json[r];
+          if (!row) continue;
+          const cleanRow = Array.from(row);
+          for (let c = 0; c < cleanRow.length; c++) {
+            const val = String(cleanRow[c] || '').trim();
+            if (val.startsWith('AT') || val.length === 16 || val.length === 21 || val.length === 22) {
+              pcbSrIdx = c;
+              break;
+            }
+          }
+          if (pcbSrIdx !== -1) break;
+        }
+      }
+
+      const dataRows = json.slice(headerRowIdx + 1).filter(r => r && r.length > 0);
+      
+      const panelsToSubmit = dataRows.map(row => {
+        const arr = Array.from(row);
+        while (arr.length < headers.length) {
+          arr.push('');
+        }
+        const cleanedRow = arr.map(c => String(c || '').trim());
+        
+        const rawBarcode = barcodeIdx !== -1 ? cleanedRow[barcodeIdx] : '';
+        const dummy = pcbSrIdx !== -1 ? cleanedRow[pcbSrIdx] : '';
+        const boxVal = boxIdx !== -1 ? cleanedRow[boxIdx] : 'Box 1';
+
+        // Skip rows that contain neither a dummy nor a real barcode
+        if (!dummy && !rawBarcode) return null;
+
+        // Extract real barcode if it contains actual content
+        const hasRealBarcode = rawBarcode && rawBarcode !== '-';
+        
+        const rowData = {};
+        headers.forEach((header, cIdx) => {
+          rowData[header] = cleanedRow[cIdx];
+        });
+
+        return {
+          dummy_sr_no: dummy,
+          real_sr_no: hasRealBarcode ? rawBarcode : '',
+          box_no: boxVal || 'Box 1',
+          barcode: hasRealBarcode ? rawBarcode : '',
+          excel_data: rowData
+        };
+      }).filter(Boolean);
+
+      // Submit immediately to database
+      await handleBulkSubmit(panelsToSubmit);
+      
+      // Reset sheet selector
+      setShowSheetSelector(false);
+      setPendingWorkbook(null);
+    } catch (err) {
+      console.error(err);
+      showToast(`Error importing sheet: ${err.message || err}`, 'danger');
+    }
   };
 
   // Submit bulk payload helper
@@ -923,6 +947,75 @@ const InwardMappingImportSection = ({ lotId, apiFetch, showToast, onSuccess }) =
         </div>
 
       </div>
+
+      {/* Sheet Selector Modal overlay */}
+      {showSheetSelector && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div className="glass-panel" style={{
+            padding: 24,
+            width: '90%',
+            maxWidth: 480,
+            borderRadius: 12,
+            border: '1px solid var(--card-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            background: 'var(--card-bg)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-primary)' }}>Select Excel Sheet</h3>
+              <button
+                type="button"
+                onClick={() => { setShowSheetSelector(false); setPendingWorkbook(null); }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              This workbook contains multiple sheets. Select the sheet containing your PCB mapping data:
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 200, overflowY: 'auto' }}>
+              {workbookSheets.map((sheet, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => importSheet(pendingWorkbook, sheet)}
+                  className="btn btn-secondary"
+                  style={{
+                    textAlign: 'left',
+                    padding: '10px 12px',
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'rgba(255,255,255,0.02)',
+                    borderColor: 'var(--card-border)'
+                  }}
+                >
+                  <FileSpreadsheet size={16} color="var(--color-primary)" />
+                  <span>{sheet}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
